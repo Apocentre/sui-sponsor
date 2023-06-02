@@ -9,6 +9,8 @@ pub struct Config {
   pub cors_config: CorsConfig,
   #[envconfig(nested = true)]
   pub sui: SuiConfig,
+  #[envconfig(from = "FIREBASE_API_KEY")]
+  pub firebase_api_key: String,
 }
 
 #[derive(Envconfig)]
