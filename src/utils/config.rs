@@ -25,7 +25,7 @@ pub struct SuiConfig {
   pub sponsor_address: SuiAddress,
 }
 
-pub struct SuiAddress(base_types::SuiAddress);
+pub struct SuiAddress(pub base_types::SuiAddress);
 
 impl FromStr for SuiAddress {
   type Err = Report;
