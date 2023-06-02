@@ -4,18 +4,24 @@ use sui_types::{
 };
 use crate::utils::config::KeyPair;
 use super::{
-  gas_pool::{get_gas_object}, gas_meter::GasMeter,
+  gas_pool::GasPool, gas_meter::GasMeter,
 };
 
 pub struct Sponsor {
   sponsor_keypair: KeyPair,
+  gas_pool: GasPool,
   gas_meter: GasMeter,
 }
 
 impl Sponsor {
-  pub fn new(sponsor_keypair: KeyPair, gas_meter: GasMeter) -> Self {
+  pub fn new(
+    sponsor_keypair: KeyPair,
+    gas_pool: GasPool,
+    gas_meter: GasMeter,
+  ) -> Self {
     Self {
       sponsor_keypair,
+      gas_pool,
       gas_meter,
     }
   }
@@ -24,7 +30,7 @@ impl Sponsor {
     let pubkey = &self.sponsor_keypair.public();
 
     let gas_data = GasData {
-      payment: vec![get_gas_object()?],
+      payment: vec![self.gas_pool.gas_object().await?],
       owner: pubkey.into(),
       price: self.gas_meter.gas_price().await?,
       budget: self.gas_meter.gas_budget(tx_data).await?,

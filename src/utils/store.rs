@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use envconfig::Envconfig;
 use sui_sdk::{SuiClientBuilder, SuiClient};
-use crate::services::{sponsor::Sponsor, gas_meter::GasMeter};
+use crate::services::{sponsor::Sponsor, gas_meter::GasMeter, gas_pool::GasPool};
 use super::config::{Config};
 
 pub struct Store {
@@ -19,9 +19,11 @@ impl Store {
       .await.unwrap()
     );
 
+    let gas_pool = GasPool::new(Arc::clone(&rpc_client));
     let gas_meter = GasMeter::new(Arc::clone(&rpc_client));
     let sponsor = Sponsor::new(
       config.sui.sponsor_keypair.clone(),
+      gas_pool,
       gas_meter,
     );
 
