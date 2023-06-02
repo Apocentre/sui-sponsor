@@ -1,5 +1,7 @@
 use std::str::FromStr;
 use envconfig::Envconfig;
+use sui_types::base_types;
+use eyre::Report;
 
 #[derive(Envconfig)]
 pub struct Config {
@@ -19,6 +21,21 @@ pub struct SuiConfig {
   pub rpc: String,
   #[envconfig(from = "SPONSOR_PRIV_KEY")]
   pub sponsor_priv_key: String,
+  #[envconfig(from = "SPONSOR_ADDRESS")]
+  pub sponsor_address: SuiAddress,
+}
+
+pub struct SuiAddress(base_types::SuiAddress);
+
+impl FromStr for SuiAddress {
+  type Err = Report;
+
+  fn from_str(s: &str) -> Result<Self, Self::Err> {
+    let addr = base_types::SuiAddress::from_str(s)
+    .map_err(|e| Report::msg(e.to_string()))?;
+
+    Ok(Self(addr))
+  }
 }
 
 pub struct CorsConfig {
