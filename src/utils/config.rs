@@ -29,10 +29,10 @@ impl FromStr for KeyPair {
   type Err = Report;
 
   fn from_str(s: &str) -> Result<Self, Self::Err> {
-    let addr = SuiKeyPair::from_str(s)
+    let keypair = SuiKeyPair::from_str(s)
     .map_err(|e| Report::msg(e.to_string()))?;
 
-    Ok(Self(Arc::new(addr)))
+    Ok(Self(Arc::new(keypair)))
   }
 }
 

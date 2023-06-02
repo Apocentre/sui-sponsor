@@ -3,7 +3,6 @@ use sui_types::{
   transaction::GasData, crypto::Signer,
 };
 use crate::utils::config::KeyPair;
-
 use super::{
   gas_pool::{get_gas_object}, gas_meter::GasMeter,
 };
