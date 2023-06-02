@@ -14,10 +14,7 @@ pub struct Sponsor {
 }
 
 impl Sponsor {
-  pub fn new(
-    sponsor_keypair: KeyPair,
-    gas_meter: GasMeter,
-  ) -> Self {
+  pub fn new(sponsor_keypair: KeyPair, gas_meter: GasMeter) -> Self {
     Self {
       sponsor_keypair,
       gas_meter,
