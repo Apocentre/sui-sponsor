@@ -11,6 +11,8 @@ pub struct Config {
   pub cors_config: CorsConfig,
   #[envconfig(nested = true)]
   pub sui: SuiConfig,
+  #[envconfig(nested = true)]
+  pub redis: RedisConfig,
   #[envconfig(from = "FIREBASE_API_KEY")]
   pub firebase_api_key: String,
 }
@@ -21,6 +23,16 @@ pub struct SuiConfig {
   pub rpc: String,
   #[envconfig(from = "SPONSOR_PRIV_KEY")]
   pub sponsor_keypair: KeyPair,
+}
+
+#[derive(Envconfig)]
+pub struct RedisConfig {
+  #[envconfig(from = "REDIS_HOST")]
+  pub host: String,
+  #[envconfig(from = "REDIS_PORT")]
+  pub port: u16,
+  #[envconfig(from = "REDIS_PASSWORD")]
+  pub password: String,
 }
 
 pub struct KeyPair(Arc<SuiKeyPair>);
