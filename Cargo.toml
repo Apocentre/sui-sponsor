@@ -1,0 +1,16 @@
+[package]
+name = "sui-sponsor"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+actix-rt = "2.8"
+actix-web = "4.3"
+actix-cors = "0.6.4"
+dotenv = "0.15"
+eyre = "0.6.8"
+env_logger = "0.10"
+envconfig = "0.10"
+tokio = { version = "1.28", features = ["macros", "rt-multi-thread"] }
