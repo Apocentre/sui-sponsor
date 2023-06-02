@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use eyre::{Result, Report};
+use eyre::Result;
 use sui_sdk::{SuiClient, rpc_types::SuiTransactionBlockEffects};
 use sui_types::{transaction::TransactionData, gas::GasCostSummary};
 
@@ -21,11 +21,11 @@ impl GasMeter {
   }
 
   pub async fn gas_budget(&self, tx_data: TransactionData) -> Result<u64> {
-    let tx_effects = self.api.read_api()
+    let tx_block_response = self.api.read_api()
     .dry_run_transaction_block(tx_data)
     .await?;
 
-    Ok(0)
+    Ok(Self::total_gas_used_upper_bound(tx_block_response.effects)?)
   }
 
   pub fn total_gas_used(tx_block_effects: SuiTransactionBlockEffects) -> Result<u64> {
