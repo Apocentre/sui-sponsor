@@ -1,5 +1,5 @@
 use std::{sync::Arc};
-use eyre::Result;
+use eyre::{Result, Report};
 use sui_sdk::SuiClient;
 use sui_types::{base_types::{ObjectID, SuiAddress}, gas_coin::GasCoin};
 use tokio::time::{sleep, Duration};
@@ -81,6 +81,31 @@ impl CoinManager {
     Ok(())
   }
 
+  async fn merge_to_master_coin(&self, input_coins: Vec<ObjectID>) -> Result<()> {
+     self.api.transaction_builder().pay_all_sui(
+      self.sponsor,
+      input_coins,
+      self.sponsor,
+      // TODO: gas meter accepts TransactionData to find the buget. But here we need the budget to construct the tx data
+      // in the first place. For the time being we use  a hardcoded value
+      100_000
+    ).await
+    .map_err(|e| Report::msg(e))?;
+
+    // let signature = self.
+
+    // let transaction_response = self.api
+    // .quorum_driver_api()
+    // .execute_transaction_block(
+    //   Transaction::from_data(transfer_tx, Intent::sui_transaction(), vec![signature]).verify()?,
+    //   SuiTransactionBlockResponseOptions::full_content(),
+    //   Some(ExecuteTransactionRequestType::WaitForLocalExecution),
+    // )
+    // .await?;
+
+    Ok(())
+  }
+
   pub async fn execute(&mut self, current_coins: Vec<String>) -> Result<()> {
     // 1. Load all coins that belong to the sponsor account
     let coins = self.api.coin_read_api().get_coins(
@@ -96,16 +121,17 @@ impl CoinManager {
     .collect::<Vec<_>>();
 
     // 2. Exclude the ones that are currently in the Gas Pool
-    let mut object_ids = coins.into_iter()
+    let mut input_coins = coins.into_iter()
     .filter(|c| !current_coins.contains(&c.to_hex_literal()))
     .collect::<Vec<_>>();
     
     // 3. Set the master coin if needed.
-    self.set_master_coin(&mut object_ids).await?;
+    self.set_master_coin(&mut input_coins).await?;
 
-    // 4. Merge all these coins into one single coin which is the so called master coin
+    // 4. Merge all these coins into the master coin
+    self.merge_to_master_coin(input_coins).await?;
     
-    
+
     // 5 Split the master coin into MAX_POOL_CAPACITY - CURRENT_POOL_COUNT equal coins
 
     // 6. Store the new coins into the pool; one Redis entry for each object id

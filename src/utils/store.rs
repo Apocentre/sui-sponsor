@@ -2,7 +2,7 @@ use std::sync::Arc;
 use envconfig::Envconfig;
 use sui_sdk::{SuiClientBuilder, SuiClient};
 use crate::{
-  services::{sponsor::Sponsor, gas_meter::GasMeter, gas_pool::GasPool}, 
+  services::{sponsor::Sponsor, gas_meter::GasMeter, gas_pool::GasPool, wallet::Wallet}, 
   storage::{redis::ConnectionPool, redlock::RedLock}
 };
 use super::config::{Config};
@@ -27,10 +27,11 @@ impl Store {
     let redis_pool = Arc::new(ConnectionPool::new(&config.redis.host, &config.redis.password, config.redis.port));
     let redlock = Arc::new(RedLock::new(vec![&config.redis.host], &config.redis.password));
 
+    let wallet = Arc::new(Wallet::new(config.sui.sponsor_keypair.clone()));
     let gas_pool = GasPool::new(Arc::clone(&rpc_client));
     let gas_meter = GasMeter::new(Arc::clone(&rpc_client));
     let sponsor = Sponsor::new(
-      config.sui.sponsor_keypair.clone(),
+      Arc::clone(&wallet),
       gas_pool,
       gas_meter,
     );
