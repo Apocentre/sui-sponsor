@@ -1,6 +1,6 @@
 use envconfig::Envconfig;
 use sui_sdk::{SuiClientBuilder, SuiClient};
-use crate::services::sponsor::{Sponsor};
+use crate::services::{sponsor::Sponsor, gas_meter::GasMeter};
 use super::config::{Config};
 
 pub struct Store {
@@ -16,9 +16,11 @@ impl  Store {
     .build(&config.sui.rpc)
     .await.unwrap();
 
+    let gas_meter = GasMeter::new();
     let sponsor = Sponsor::new(
       config.sui.sponsor_priv_key.clone(),
-      config.sui.sponsor_address.0
+      config.sui.sponsor_address.0,
+      gas_meter,
     );
 
     Self {
