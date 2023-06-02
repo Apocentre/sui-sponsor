@@ -1,11 +1,17 @@
 use std::{sync::Arc};
 use eyre::{Result, Report};
-use sui_sdk::SuiClient;
-use sui_types::{base_types::{ObjectID, SuiAddress}, gas_coin::GasCoin};
+use sui_sdk::{SuiClient, rpc_types::SuiTransactionBlockResponseOptions};
+use shared_crypto::intent::Intent;
+use sui_types::{
+  base_types::{ObjectID, SuiAddress}, gas_coin::GasCoin, transaction::Transaction,
+  quorum_driver_types::ExecuteTransactionRequestType
+};
 use tokio::time::{sleep, Duration};
 use crate::storage::{
   redis::ConnectionPool, redlock::RedLock,
 };
+
+use super::wallet::Wallet;
 
 const GAS_KEY_PREFIX: &str = "gas:";
 const MASTER_COIN_KEY: &str = "gas::master_coin";
@@ -19,6 +25,7 @@ const MASTER_COIN_KEY: &str = "gas::master_coin";
 /// which are added back to the Gas Pool
 pub struct CoinManager {
   api: Arc<SuiClient>,
+  wallet: Arc<Wallet>,
   redis_pool: Arc<ConnectionPool>,
   redlock: Arc<RedLock>,
   max_capacity: usize,
@@ -32,6 +39,7 @@ pub struct CoinManager {
 impl CoinManager {
   pub fn new(
     api: Arc<SuiClient>,
+    wallet: Arc<Wallet>,
     redis_pool: Arc<ConnectionPool>,
     redlock: Arc<RedLock>,
     max_capacity: usize,
@@ -40,6 +48,7 @@ impl CoinManager {
   ) -> Self {
     Self {
       api,
+      wallet,
       redis_pool,
       redlock,
       max_capacity,
@@ -82,7 +91,7 @@ impl CoinManager {
   }
 
   async fn merge_to_master_coin(&self, input_coins: Vec<ObjectID>) -> Result<()> {
-     self.api.transaction_builder().pay_all_sui(
+     let tx_data = self.api.transaction_builder().pay_all_sui(
       self.sponsor,
       input_coins,
       self.sponsor,
@@ -92,16 +101,16 @@ impl CoinManager {
     ).await
     .map_err(|e| Report::msg(e))?;
 
-    // let signature = self.
+    let signature = self.wallet.sign(&tx_data)?;
 
-    // let transaction_response = self.api
-    // .quorum_driver_api()
-    // .execute_transaction_block(
-    //   Transaction::from_data(transfer_tx, Intent::sui_transaction(), vec![signature]).verify()?,
-    //   SuiTransactionBlockResponseOptions::full_content(),
-    //   Some(ExecuteTransactionRequestType::WaitForLocalExecution),
-    // )
-    // .await?;
+    self.api
+    .quorum_driver_api()
+    .execute_transaction_block(
+      Transaction::from_data(tx_data, Intent::sui_transaction(), vec![signature]).verify()?,
+      SuiTransactionBlockResponseOptions::full_content(),
+      Some(ExecuteTransactionRequestType::WaitForEffectsCert),
+    )
+    .await?;
 
     Ok(())
   }

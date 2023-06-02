@@ -19,7 +19,7 @@ impl Wallet {
     self.keypair.public()
   }
 
-  pub fn sign<T: Serialize>(&self, msg: T) -> Result<Signature> {
-    Ok(self.keypair.sign(&bincode::serialize(&msg)?))
+  pub fn sign<T: Serialize>(&self, msg: &T) -> Result<Signature> {
+    Ok(self.keypair.sign(&bincode::serialize(msg)?))
   }
 }

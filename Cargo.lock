@@ -10359,6 +10359,7 @@ dependencies = [
  "rslock",
  "serde 1.0.163",
  "serde_json",
+ "shared-crypto",
  "sui-keys",
  "sui-sdk",
  "sui-types",
