@@ -1,6 +1,6 @@
 use eyre::{Result};
 use sui_types::{
-  transaction::GasData,
+  transaction::GasData, crypto::Signer,
 };
 use crate::utils::config::KeyPair;
 
@@ -27,7 +27,7 @@ impl Sponsor {
   fn create_gas_data(&self) -> Result<GasData> {
     let pubkey = &self.sponsor_keypair.public();
 
-    let gas_data =  GasData {
+    let gas_data = GasData {
       payment: vec![get_gas_object()?],
       owner: pubkey.into(),
       price: self.gas_meter.gas_price(),
@@ -39,8 +39,9 @@ impl Sponsor {
 
   pub fn request_gas(&self) -> Result<String> {
     let gas_data = self.create_gas_data()?;
-    let gas_data = serde_json::to_string(&gas_data)?;
-
-    Ok(gas_data)
+    let sig = self.sponsor_keypair.sign(&bincode::serialize(&gas_data)?);
+    let sig_str = serde_json::to_string(&sig)?;
+    
+    Ok(sig_str)
   }
 }
