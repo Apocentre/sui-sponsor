@@ -20,21 +20,21 @@ impl Sponsor {
     }
   }
 
-  fn create_gas_data(&self) -> Result<GasData> {
+  async fn create_gas_data(&self) -> Result<GasData> {
     let pubkey = &self.sponsor_keypair.public();
 
     let gas_data = GasData {
       payment: vec![get_gas_object()?],
       owner: pubkey.into(),
-      price: self.gas_meter.gas_price(),
+      price: self.gas_meter.gas_price().await?,
       budget: self.gas_meter.gas_budget(),
     };
   
     Ok(gas_data) 
   }
 
-  pub fn request_gas(&self) -> Result<String> {
-    let gas_data = self.create_gas_data()?;
+  pub async fn request_gas(&self) -> Result<String> {
+    let gas_data = self.create_gas_data().await?;
     let sig = self.sponsor_keypair.sign(&bincode::serialize(&gas_data)?);
     let sig_str = serde_json::to_string(&sig)?;
     

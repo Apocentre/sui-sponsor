@@ -1,13 +1,22 @@
-pub struct GasMeter;
+use std::sync::Arc;
+use eyre::Result;
+use sui_sdk::SuiClient;
+
+pub struct GasMeter {
+  api: Arc<SuiClient>,
+}
 
 impl GasMeter {
-  pub fn new() -> Self {
-    Self {}
+  pub fn new(api: Arc<SuiClient>) -> Self {
+    Self {api}
   }
 
-  pub fn gas_price(&self) -> u64 {
-    // TODO: Get the current ga price
-    0
+  pub async fn gas_price(&self) -> Result<u64> {
+    let gas = self.api.read_api()
+    .get_reference_gas_price()
+    .await?;
+
+    Ok(gas)
   }
 
   pub fn gas_budget(&self) -> u64 {
