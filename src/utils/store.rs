@@ -9,7 +9,7 @@ pub struct Store {
   pub sponsor: Sponsor,
 }
 
-impl  Store {
+impl Store {
   pub async fn new() -> Self {
     let config = Config::init_from_env().unwrap();
     let rpc_client = SuiClientBuilder::default()
@@ -18,8 +18,7 @@ impl  Store {
 
     let gas_meter = GasMeter::new();
     let sponsor = Sponsor::new(
-      config.sui.sponsor_priv_key.clone(),
-      config.sui.sponsor_address.0,
+      config.sui.sponsor_keypair.clone(),
       gas_meter,
     );
 

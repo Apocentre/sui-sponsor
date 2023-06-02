@@ -1,34 +1,35 @@
 use eyre::{Result};
 use sui_types::{
-  transaction::{GasData}, base_types::{SuiAddress},
+  transaction::GasData,
 };
+use crate::utils::config::KeyPair;
+
 use super::{
-  gas_pool::{get_gas_object}, gas_meter::{GasMeter},
+  gas_pool::{get_gas_object}, gas_meter::GasMeter,
 };
 
 pub struct Sponsor {
-  sponsor_priv_key: String,
-  sponsor_address: SuiAddress,
+  sponsor_keypair: KeyPair,
   gas_meter: GasMeter,
 }
 
-impl  Sponsor {
+impl Sponsor {
   pub fn new(
-    sponsor_priv_key: String,
-    sponsor_address: SuiAddress,
+    sponsor_keypair: KeyPair,
     gas_meter: GasMeter,
   ) -> Self {
     Self {
-      sponsor_priv_key,
-      sponsor_address,
+      sponsor_keypair,
       gas_meter,
     }
   }
 
   fn create_gas_data(&self) -> Result<GasData> {
+    let pubkey = &self.sponsor_keypair.public();
+
     let gas_data =  GasData {
       payment: vec![get_gas_object()?],
-      owner: self.sponsor_address,
+      owner: pubkey.into(),
       price: self.gas_meter.gas_price(),
       budget: self.gas_meter.gas_budget(),
     };
