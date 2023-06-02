@@ -8430,18 +8430,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "redlock-async"
-version = "0.0.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68cf8097da159b5f744d70d67d9484c14ef415f1e3c5f3409890e6ab1c48cbd4"
-dependencies = [
- "futures",
- "rand 0.8.5",
- "redis 0.21.7",
- "tokio",
-]
-
-[[package]]
 name = "redox_syscall"
 version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8677,6 +8665,18 @@ dependencies = [
  "signature 2.1.0",
  "subtle",
  "zeroize",
+]
+
+[[package]]
+name = "rslock"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0383c8146a3087afbfcab8a94e1d55da3ea2af41458097e001fcfea547ba44d4"
+dependencies = [
+ "futures",
+ "rand 0.8.5",
+ "redis 0.21.7",
+ "tokio",
 ]
 
 [[package]]
@@ -10356,7 +10356,7 @@ dependencies = [
  "envconfig",
  "eyre",
  "redis 0.23.0",
- "redlock-async",
+ "rslock",
  "serde 1.0.163",
  "serde_json",
  "sui-keys",

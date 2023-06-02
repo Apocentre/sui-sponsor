@@ -11,7 +11,7 @@ pub struct Store {
   pub config: Config,
   pub rpc_client: Arc<SuiClient>,
   pub sponsor: Sponsor,
-  pub redis_pool: ConnectionPool,
+  pub redis_pool: Arc<ConnectionPool>,
   pub redlock: Arc<RedLock>,
 }
 
@@ -24,7 +24,7 @@ impl Store {
       .await.unwrap()
     );
 
-    let redis_pool = ConnectionPool::new(&config.redis.host, &config.redis.password, config.redis.port);
+    let redis_pool = Arc::new(ConnectionPool::new(&config.redis.host, &config.redis.password, config.redis.port));
     let redlock = Arc::new(RedLock::new(vec![&config.redis.host], &config.redis.password));
 
     let gas_pool = GasPool::new(Arc::clone(&rpc_client));

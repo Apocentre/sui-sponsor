@@ -1,9 +1,14 @@
-use std::{sync::Arc, str::FromStr, collections::HashSet};
+use std::{sync::Arc};
 use eyre::Result;
 use sui_sdk::SuiClient;
 use sui_types::{base_types::{ObjectID, SuiAddress}, gas_coin::GasCoin};
 use tokio::time::{sleep, Duration};
-use crate::storage::redis::ConnectionPool;
+use crate::storage::{
+  redis::ConnectionPool, redlock::RedLock,
+};
+
+const GAS_KEY_PREFIX: &str = "gas:";
+const MASTER_COIN_KEY: &str = "gas::master_coin";
 
 /// The role of CoinManager is to merge small coins into a single one and the split those into smaller ones.
 /// Those smaller coins will be added into the Gas Pool and later consumer by the GasPool service.
@@ -15,6 +20,7 @@ use crate::storage::redis::ConnectionPool;
 pub struct CoinManager {
   api: Arc<SuiClient>,
   redis_pool: Arc<ConnectionPool>,
+  redlock: Arc<RedLock>,
   max_capacity: usize,
   min_pool_count: usize,
   /// This is the coin that we all other coins will be merged into. We will select one of Sponsor's coins during the first
@@ -27,6 +33,7 @@ impl CoinManager {
   pub fn new(
     api: Arc<SuiClient>,
     redis_pool: Arc<ConnectionPool>,
+    redlock: Arc<RedLock>,
     max_capacity: usize,
     min_pool_count: usize,
     sponsor: SuiAddress,
@@ -34,6 +41,7 @@ impl CoinManager {
     Self {
       api,
       redis_pool,
+      redlock,
       max_capacity,
       min_pool_count,
       master_coin: None,
@@ -41,7 +49,39 @@ impl CoinManager {
     }
   }
 
-  pub async fn execute(&self, current_coins: Vec<String>) -> Result<()> {
+  /// Set the master coin. This will be common for all instances of this service so it has to work in
+  /// a distributed environment. That's why we use a distributed lock.
+  async fn set_master_coin(&mut self, coins: &mut Vec<ObjectID>) -> Result<()> {
+    if let None = self.master_coin {
+      // load from redis if exist. Make sure no other service performs the same set of actions
+      let lock = self.redlock.lock(
+        MASTER_COIN_KEY.as_bytes(),
+        Duration::from_secs(10000).as_millis() as usize,
+      ).await?;
+
+      let mut conn = self.redis_pool.connection().await?;
+
+      // If there is no master coin in redis then set one of the sponsor's coins
+      let Ok(master_coin) = conn.get(MASTER_COIN_KEY).await else {
+        let last_index = coins.len() - 1;
+        self.master_coin = Some(coins[last_index].clone());
+
+        // Note! We exlcude the master coin from the coins that will
+        coins.remove(last_index);
+
+        return Ok(())
+      };
+
+      // otherwise use the Redis master coin. This will be shared by all other instances
+      self.master_coin = Some(ObjectID::from_hex_literal(&master_coin)?);
+
+      self.redlock.unlock(lock).await;
+    }
+
+    Ok(())
+  }
+
+  pub async fn execute(&mut self, current_coins: Vec<String>) -> Result<()> {
     // 1. Load all coins that belong to the sponsor account
     let coins = self.api.coin_read_api().get_coins(
       self.sponsor,
@@ -53,32 +93,35 @@ impl CoinManager {
     .data
     .into_iter()
     .map(|c| c.coin_object_id)
-    .collect::<HashSet<_>>();
+    .collect::<Vec<_>>();
 
     // 2. Exclude the ones that are currently in the Gas Pool
-    let object_ids = coins.into_iter()
+    let mut object_ids = coins.into_iter()
     .filter(|c| !current_coins.contains(&c.to_hex_literal()))
     .collect::<Vec<_>>();
     
-    // 2. Merge all these coins into one single coin which is the so called master coin
+    // 3. Set the master coin if needed.
+    self.set_master_coin(&mut object_ids).await?;
+
+    // 4. Merge all these coins into one single coin which is the so called master coin
     
+    
+    // 5 Split the master coin into MAX_POOL_CAPACITY - CURRENT_POOL_COUNT equal coins
 
-    // 3. Split the master coin into MAX_POOL_CAPACITY - CURRENT_POOL_COUNT equal coins
-
-    // 4. Store the new coins into the pool; one Redis entry for each object id
+    // 6. Store the new coins into the pool; one Redis entry for each object id
     Ok(())
   }
 
   async fn get_pool_coins(&self) -> Result<Vec<String>> {
     // check the numbet of Gas coins in the pool
     let mut conn = self.redis_pool.connection().await?;
-    let gas_coins = conn.keys("gas:").await?;
+    let gas_coins = conn.keys(GAS_KEY_PREFIX).await?;
 
     Ok(gas_coins)
   }
 
   /// A loop that periodically checks if the number of Gas coins in the pool is lower than our capacity
-  pub async fn run(&self) -> Result<()> {
+  pub async fn run(&mut self) -> Result<()> {
     loop {
       let pool_coins = self.get_pool_coins().await?;
 
