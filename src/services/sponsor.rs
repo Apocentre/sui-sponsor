@@ -25,7 +25,7 @@ impl  Sponsor {
     }
   }
 
-  pub fn request_gas(&self) -> Result<GasData> {
+  fn create_gas_data(&self) -> Result<GasData> {
     let gas_data =  GasData {
       payment: vec![get_gas_object()?],
       owner: self.sponsor_address,
@@ -33,6 +33,13 @@ impl  Sponsor {
       budget: self.gas_meter.gas_budget(),
     };
   
-    Ok(gas_data)  
+    Ok(gas_data) 
+  }
+
+  pub fn request_gas(&self) -> Result<String> {
+    let gas_data = self.create_gas_data()?;
+    let gas_data = serde_json::to_string(&gas_data)?;
+
+    Ok(gas_data)
   }
 }
