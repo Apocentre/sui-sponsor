@@ -9,15 +9,15 @@ use super::{
 
 pub struct Sponsor {
   wallet: Arc<Wallet>,
+  gas_meter: Arc<GasMeter>,
   gas_pool: GasPool,
-  gas_meter: GasMeter,
 }
 
 impl Sponsor {
   pub fn new(
     wallet: Arc<Wallet>,
+    gas_meter: Arc<GasMeter>,
     gas_pool: GasPool,
-    gas_meter: GasMeter,
   ) -> Self {
     Self {
       wallet,

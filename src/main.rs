@@ -1,6 +1,6 @@
 
 use std::{
-  io::Result, rc::Rc, env, panic, process,
+  io::Result, rc::Rc, env, panic, process, sync::Arc,
 };
 use actix_cors::Cors;
 use actix_web::{middleware, web, http, App, HttpResponse, HttpServer};
@@ -32,6 +32,13 @@ async fn main() -> Result<()> {
   HttpServer::new(move || {
     let _authn_middleware = Rc::new(AuthnMiddlewareFactory::new(firebase_api_key.to_owned()));
     let cors_origin = store.config.cors_config.origin.clone();
+
+    // Spawn the coin manager
+    let coin_manager = Arc::clone(&store.coin_manager);
+    tokio::spawn(async move {
+      let mut coin_manager = coin_manager.lock().await;
+      coin_manager.run().await.expect("coin manager not to fail");
+    });
 
     let cors = Cors::default()
     .allowed_origin_fn(move |origin, _| {

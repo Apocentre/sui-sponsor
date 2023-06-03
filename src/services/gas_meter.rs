@@ -3,6 +3,7 @@ use eyre::Result;
 use sui_sdk::{SuiClient, rpc_types::SuiTransactionBlockEffects};
 use sui_types::{transaction::TransactionData, gas::GasCostSummary};
 
+#[derive(Clone)]
 pub struct GasMeter {
   api: Arc<SuiClient>,
 }

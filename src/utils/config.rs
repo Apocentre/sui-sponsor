@@ -13,8 +13,20 @@ pub struct Config {
   pub sui: SuiConfig,
   #[envconfig(nested = true)]
   pub redis: RedisConfig,
+  #[envconfig(nested = true)]
+  pub gas_pool: GasPoolConfig,
   #[envconfig(from = "FIREBASE_API_KEY")]
   pub firebase_api_key: String,
+}
+
+#[derive(Envconfig)]
+pub struct GasPoolConfig {
+  #[envconfig(from = "MAX_POOL_CAPACITY")]
+  pub max_capacity: usize,
+  #[envconfig(from = "MIN_POOL_COUNT")]
+  pub min_pool_count: usize,
+  #[envconfig(from = "MIN_COIN_BALANCE")]
+  pub min_coin_balance: u64,
 }
 
 #[derive(Envconfig)]

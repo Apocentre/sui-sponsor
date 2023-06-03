@@ -26,7 +26,7 @@ const MASTER_COIN_KEY: &str = "gas::master_coin";
 pub struct CoinManager {
   api: Arc<SuiClient>,
   wallet: Arc<Wallet>,
-  gas_meter: GasMeter,
+  gas_meter: Arc<GasMeter>,
   redis_pool: Arc<ConnectionPool>,
   redlock: Arc<RedLock>,
   max_capacity: usize,
@@ -43,7 +43,7 @@ impl CoinManager {
   pub fn new(
     api: Arc<SuiClient>,
     wallet: Arc<Wallet>,
-    gas_meter: GasMeter,
+    gas_meter: Arc<GasMeter>,
     redis_pool: Arc<ConnectionPool>,
     redlock: Arc<RedLock>,
     max_capacity: usize,
