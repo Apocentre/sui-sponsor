@@ -1,16 +1,15 @@
-use std::{sync::Arc};
-use eyre::{Result, Report};
+use std::{sync::Arc, str::FromStr};
+use eyre::{eyre, Result, Report};
 use sui_sdk::{SuiClient, rpc_types::{SuiTransactionBlockResponseOptions, Coin}};
 use shared_crypto::intent::Intent;
 use sui_types::{
   base_types::{ObjectID, SuiAddress}, gas_coin::GasCoin, transaction::Transaction,
-  quorum_driver_types::ExecuteTransactionRequestType, programmable_transaction_builder::ProgrammableTransactionBuilder
+  quorum_driver_types::ExecuteTransactionRequestType, programmable_transaction_builder::ProgrammableTransactionBuilder, TypeTag, Identifier
 };
 use tokio::time::{sleep, Duration};
-use crate::storage::{
-  redis::ConnectionPool, redlock::RedLock,
+use crate::{
+  storage::{redis::ConnectionPool, redlock::RedLock}, map_err
 };
-
 use super::wallet::Wallet;
 
 const GAS_KEY_PREFIX: &str = "gas:";
@@ -83,7 +82,6 @@ impl CoinManager {
 
       // otherwise use the Redis master coin. This will be shared by all other instances
       self.master_coin = Some(ObjectID::from_hex_literal(&master_coin)?);
-
       self.redlock.unlock(lock).await;
     }
 
@@ -91,7 +89,11 @@ impl CoinManager {
   }
 
   async fn merge_to_master_coin(&self, input_coins: Vec<ObjectID>) -> Result<()> {
-     let tx_data = self.api.transaction_builder().pay_all_sui(
+    let mut pt_builder = ProgrammableTransactionBuilder::new();
+    let sui_coin_arg_type = map_err!(TypeTag::from_str("0x2::sui::SUI"));
+    let split_fun = map_err!(Identifier::from_str("split"));
+
+    let tx_data = self.api.transaction_builder().pay_all_sui(
       self.sponsor,
       input_coins,
       self.sponsor,
