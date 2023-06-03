@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use eyre::{Result};
+use shared_crypto::intent::Intent;
 use sui_types::{
   transaction::{GasData, TransactionData},
 };
@@ -41,7 +42,7 @@ impl Sponsor {
 
   pub async fn request_gas(&self, tx_data: TransactionData) -> Result<String> {
     let gas_data = self.create_gas_data(tx_data).await?;
-    let sig = self.wallet.sign(&gas_data)?;
+    let sig = self.wallet.sign(&gas_data, Intent::sui_transaction())?;
     let sig_str = serde_json::to_string(&sig)?;
     
     Ok(sig_str)

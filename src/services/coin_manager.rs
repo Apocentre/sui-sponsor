@@ -82,15 +82,15 @@ impl CoinManager {
     let mut ptb = ProgrammableTransactionBuilder::new();
     
     // Use the first coin as the master coin
+    // The master coin and gas payment cannot be used in the input coins that will be merged so we should
+    // remove both from the list
+    let master_coin_obj_ref = input_coins[0].object_ref();
+    input_coins.remove(0);
+
     let gas_payment_index = Self::get_gas_payment_coin_index(&input_coins)?;
     let gas_payment = input_coins[gas_payment_index].object_ref();
-    let master_coin_obj_ref = input_coins[0].object_ref();
-    // The master coin and gas payment cannot be used in the input coins that will be merged
-    input_coins.remove(0);
     input_coins.remove(gas_payment_index);
 
-    input_coins.iter().for_each(|c| println!("Input coin >>>>>>>> {c:?}"));
-    
     // 1. Merge all these coins into the master coin 
     // If the sponsor has only one coin the input_coins (which exclude the master coin) will be empty and thus
     // we can skip the merge step in this iteration.
@@ -114,7 +114,6 @@ impl CoinManager {
 
     info!("Number of new coins {}", amounts.len());
 
-
     let split_coin_cmd = Command::SplitCoins(
       map_err!(ptb.obj(ObjectArg::ImmOrOwnedObject(master_coin_obj_ref)))?,
       amounts,
@@ -130,14 +129,12 @@ impl CoinManager {
       gas_price,
     );
 
-    let response = self.api
+    self.api
     .read_api()
     .dry_run_transaction_block(tx_data.clone())
     .await?;
 
-    println!(">>>>>>>>>>>>> {:?}", response);
-
-    let signature = self.wallet.sign(&tx_data)?;
+    let signature = self.wallet.sign(&tx_data, Intent::sui_transaction())?;
     let transaction_response = self.api
     .quorum_driver_api()
     .execute_transaction_block(
