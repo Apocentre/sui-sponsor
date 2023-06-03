@@ -17,9 +17,9 @@ pub async fn get_object_ref(api: Arc<SuiClient>, object_id: ObjectID) -> Result<
 pub fn get_created_objects(response: &SuiTransactionBlockResponse) -> Vec<ObjectID> {
   let mut new_objects = vec![];
 
-  if let Some(object_changes) = response.object_changes {
+  if let Some(object_changes) = response.object_changes.as_ref() {
     let objs = object_changes.iter()
-    .filter(|obj| if let ObjectChange::Created {object_id, ..} = obj {true} else {false})
+    .filter(|obj| if let ObjectChange::Created {..} = obj {true} else {false})
     .map(|obj| obj.object_id());
 
     new_objects.extend(objs)

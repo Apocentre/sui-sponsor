@@ -3,7 +3,7 @@ use eyre::{Result, ensure, eyre, ContextCompat};
 use shared_crypto::intent::Intent;
 use sui_sdk::{SuiClient, rpc_types::{Coin, SuiTransactionBlockResponseOptions}};
 use sui_types::{
-  base_types::SuiAddress, transaction::{Command, ObjectArg, TransactionData, Transaction},
+  base_types::{SuiAddress, ObjectID}, transaction::{Command, ObjectArg, TransactionData, Transaction},
   programmable_transaction_builder::ProgrammableTransactionBuilder, quorum_driver_types::ExecuteTransactionRequestType,
 };
 use log::info;
@@ -57,6 +57,28 @@ impl CoinManager {
     }
   }
 
+  /// read the gas pool coins from Redis
+  async fn get_pool_coins(&self) -> Result<Vec<String>> {
+    // check the numbet of Gas coins in the pool
+    let mut conn = self.redis_pool.connection().await?;
+    let gas_coins = conn.keys(GAS_KEY_PREFIX.to_string()).await?;
+
+    Ok(gas_coins)
+  }
+
+  /// A loop that periodically checks if the number of Gas coins in the pool is lower than our capacity
+  pub async fn run(&mut self) -> Result<()> {
+    loop {
+      let pool_coins = self.get_pool_coins().await?;
+
+      if pool_coins.len() <= self.min_pool_count {
+        self.execute(pool_coins).await?;
+      }
+      
+      sleep(Duration::from_secs(100)).await;
+    }
+  }
+
   // It will find the smallest coins that has just enough balance to pay the rebalance_coin transaction block gas cost
   fn get_gas_payment_coin_index(input_coins: &Vec<Coin>) -> Result<usize> {
     // TODO: We need to calculate the amount of gas cost that will be required to pay for the rebalance_coin
@@ -75,7 +97,7 @@ impl CoinManager {
     &self,
     mut input_coins: Vec<Coin>,
     gas_pool_coin_count: usize,
-  ) -> Result<()> {
+  ) -> Result<Vec<ObjectID>> {
     info!("Rebalancing coins...");
 
     let gas_price = self.gas_meter.gas_price().await?;
@@ -112,15 +134,13 @@ impl CoinManager {
     .map(|a| ptb.pure(a).expect("pure arg"))
     .collect::<Vec<_>>();
 
-    info!("Number of new coins {}", amounts.len());
-
     let split_coin_cmd = Command::SplitCoins(
       map_err!(ptb.obj(ObjectArg::ImmOrOwnedObject(master_coin_obj_ref)))?,
       amounts,
     );
     ptb.command(split_coin_cmd);
     
-    ptb.transfer_arg(self.sponsor, gas_payment);
+    // ptb.transfer_arg(self.sponsor, gas_payment);
 
     let pt = ptb.finish();
     let tx_data = TransactionData::new_programmable(
@@ -150,12 +170,9 @@ impl CoinManager {
     ensure!(response.errors.len() == 0, "rebalancing failed");
 
     let new_objects = get_created_objects(&response);
-
-    println!(">>>>>>>> {:?}", response);
-
-    info!("Suceccessfully rebalanced coins");
-
-    Ok(())
+    info!("Suceccessfully rebalanced. Number of new coins {}", new_objects.len());
+  
+    Ok(new_objects)
   }
 
   /// Fetches all coins that belong to the sponsor. It will return a sorted array of coins according to their balance
@@ -182,6 +199,21 @@ impl CoinManager {
     Ok(coins)
   }
 
+  /// It will add all newly created coin object ids to Redis, as well as, push
+  /// to the distrubuted queue to be consumed by the Gas Pool.
+  pub async fn process_new_coins(&self, new_coins: Vec<ObjectID>) -> Result<()> {
+    let new_coins = new_coins.iter()
+    .map(|c| c.to_hex_uncompressed())
+    .collect::<Vec<_>>();
+
+    let len = new_coins.len();
+    let mut conn = self.redis_pool.connection().await?;
+    // the value is irrelevant; we just use number 1 as a convention
+    conn.mset(new_coins, vec!["1".to_string(); len]);
+    
+    Ok(())
+  }
+
   /// Main execution logic
   pub async fn execute(&mut self, current_coins: Vec<String>) -> Result<()> {
     // 1. Load all coins that belong to the sponsor account
@@ -199,32 +231,11 @@ impl CoinManager {
   
     // 3. Rebalance coins
     let gas_pool_coin_count = current_coins.len();
-    self.rebalance_coins(input_coins, gas_pool_coin_count).await?;
+    let new_coins = self.rebalance_coins(input_coins, gas_pool_coin_count).await?;
     
     // 4. TODO: Store the new coins into the pool; one Redis entry for each object id
     
+
     Ok(())
-  }
-
-  /// read the gas pool coins from Redis
-  async fn get_pool_coins(&self) -> Result<Vec<String>> {
-    // check the numbet of Gas coins in the pool
-    let mut conn = self.redis_pool.connection().await?;
-    let gas_coins = conn.keys(GAS_KEY_PREFIX).await?;
-
-    Ok(gas_coins)
-  }
-
-  /// A loop that periodically checks if the number of Gas coins in the pool is lower than our capacity
-  pub async fn run(&mut self) -> Result<()> {
-    loop {
-      let pool_coins = self.get_pool_coins().await?;
-
-      if pool_coins.len() <= self.min_pool_count {
-        self.execute(pool_coins).await?;
-      }
-      
-      sleep(Duration::from_secs(100)).await;
-    }
   }
 }

@@ -26,44 +26,57 @@ impl Redis {
     Redis(connection)
   }
 
-  pub async fn set(&mut self, key: &str, value: &str) -> Result<()> {
+  pub async fn sett<T: AsRef<str>>(&mut self, key: T, value: T) -> Result<()> {
     cmd("SET")
-    .arg(&[key, value])
+    .arg(&[key.as_ref(), value.as_ref()])
     .query_async(&mut self.0).await
     .map_err(Into::<_>::into)
   }
 
-  pub async fn set_ex(&mut self, key: &str, value: &str, secs: usize) -> Result<()> {
+  pub async fn mset<T: AsRef<str>>(&mut self, keys: Vec<T>, values: Vec<T>) -> Result<()> {
+    let keys = keys.iter().map(AsRef::as_ref).collect::<Vec<_>>();
+    let values = values.iter().map(AsRef::as_ref).collect::<Vec<_>>();
+
+    cmd("MSET")
+    .arg(&[keys, values])
+    .query_async(&mut self.0).await
+    .map_err(Into::<_>::into)
+  }
+
+
+  pub async fn set_ext<T: AsRef<str>>(&mut self, key: T, value: T, secs: usize) -> Result<()> {
     cmd("SETEX")
-    .arg(&[key, &secs.to_string(), value])
+    .arg(&[key.as_ref(), &secs.to_string(), value.as_ref()])
     .query_async(&mut self.0).await
     .map_err(Into::<_>::into)
   }
 
-  pub async fn get(&mut self, key: &str) -> Result<String> {
+  pub async fn gett<T: AsRef<str>>(&mut self, key: T) -> Result<String> {
     cmd("GET")
-    .arg(&[key])
+    .arg(&[key.as_ref()])
     .query_async(&mut self.0).await
     .map_err(Into::<_>::into)
   }
 
-  pub async fn mget(&mut self, keys: &[&str]) -> Result<Vec<String>> {
+  pub async fn mget<T: AsRef<str>>(&mut self, keys: &[T]) -> Result<Vec<String>> {
+    let keys = keys.iter().map(AsRef::as_ref).collect::<Vec<_>>();
+
     cmd("MGET")
     .arg(keys)
     .query_async(&mut self.0).await
     .map_err(Into::<_>::into)
   }
 
-  pub async fn delete(&mut self, key: &str) -> Result<()> {
+  pub async fn deletet<T: AsRef<str>>(&mut self, key: T) -> Result<()> {
     cmd("DEL")
-    .arg(key)
+    .arg(key.as_ref())
     .query_async(&mut self.0).await
     .map_err(Into::<_>::into)
   }
 
-  pub async fn keys(&mut self, key_pattern: &str) -> Result<Vec<String>> {
+  pub async fn keys<T: AsRef<str>>(&mut self, key_pattern: T) -> Result<Vec<String>> {
     cmd("KEYS")
-    .arg(key_pattern)
+    .arg(key_pattern.as_ref())
     .query_async(&mut self.0).await
     .map_err(Into::<_>::into)
   }
