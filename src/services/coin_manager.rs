@@ -1,10 +1,10 @@
 use std::{sync::Arc};
 use eyre::{Result, Report};
-use sui_sdk::{SuiClient, rpc_types::SuiTransactionBlockResponseOptions};
+use sui_sdk::{SuiClient, rpc_types::{SuiTransactionBlockResponseOptions, Coin}};
 use shared_crypto::intent::Intent;
 use sui_types::{
   base_types::{ObjectID, SuiAddress}, gas_coin::GasCoin, transaction::Transaction,
-  quorum_driver_types::ExecuteTransactionRequestType
+  quorum_driver_types::ExecuteTransactionRequestType, programmable_transaction_builder::ProgrammableTransactionBuilder
 };
 use tokio::time::{sleep, Duration};
 use crate::storage::{
@@ -115,19 +115,36 @@ impl CoinManager {
     Ok(())
   }
 
+  async fn fetch_coins(&self) -> Result<Vec<Coin>> {
+    let mut coins = vec![];
+    let mut cursor = None;
+
+    loop {
+      let response = self.api.coin_read_api().get_coins(
+        self.sponsor,
+        Some(GasCoin::type_().to_canonical_string()),
+        cursor,
+        None,
+      )
+      .await?;
+
+      coins.extend(response.data);
+
+      if !response.has_next_page {break}
+      cursor = response.next_cursor;
+    }
+
+    Ok(coins)
+  }
+
   pub async fn execute(&mut self, current_coins: Vec<String>) -> Result<()> {
     // 1. Load all coins that belong to the sponsor account
-    let coins = self.api.coin_read_api().get_coins(
-      self.sponsor,
-      Some(GasCoin::type_().to_canonical_string()),
-      None,
-      None,
-    )
+    let coins = self.fetch_coins()
     .await?
-    .data
     .into_iter()
     .map(|c| c.coin_object_id)
     .collect::<Vec<_>>();
+    
 
     // 2. Exclude the ones that are currently in the Gas Pool
     let mut input_coins = coins.into_iter()
@@ -137,6 +154,8 @@ impl CoinManager {
     // 3. Set the master coin if needed.
     self.set_master_coin(&mut input_coins).await?;
 
+    let mut pt_builder = ProgrammableTransactionBuilder::new();
+    
     // 4. Merge all these coins into the master coin
     self.merge_to_master_coin(input_coins).await?;
     
@@ -168,5 +187,3 @@ impl CoinManager {
     }
   }
 }
-
-
