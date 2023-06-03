@@ -9,7 +9,7 @@ use sui_types::{
 use log::info;
 use tokio::time::{sleep, Duration};
 use crate::{
-  storage::{redis::ConnectionPool}, map_err,
+  storage::{redis::ConnectionPool}, map_err, helpers::object::get_created_objects,
 };
 use super::{wallet::Wallet, gas_meter::GasMeter};
 
@@ -120,6 +120,8 @@ impl CoinManager {
     );
     ptb.command(split_coin_cmd);
     
+    ptb.transfer_arg(self.sponsor, gas_payment);
+
     let pt = ptb.finish();
     let tx_data = TransactionData::new_programmable(
       self.sponsor,
@@ -135,17 +137,21 @@ impl CoinManager {
     .await?;
 
     let signature = self.wallet.sign(&tx_data, Intent::sui_transaction())?;
-    let transaction_response = self.api
+    let response = self.api
     .quorum_driver_api()
     .execute_transaction_block(
       Transaction::from_data(tx_data, Intent::sui_transaction(), vec![signature]).verify()?,
       SuiTransactionBlockResponseOptions::full_content(),
-      Some(ExecuteTransactionRequestType::WaitForEffectsCert),
+      Some(ExecuteTransactionRequestType::WaitForLocalExecution),
     )
     .await
     .expect("successul rebalancing");
 
-    println!(">>>>>>>> {:?}", transaction_response);
+    ensure!(response.errors.len() == 0, "rebalancing failed");
+
+    let new_objects = get_created_objects(&response);
+
+    println!(">>>>>>>> {:?}", response);
 
     info!("Suceccessfully rebalanced coins");
 
@@ -218,7 +224,7 @@ impl CoinManager {
         self.execute(pool_coins).await?;
       }
       
-      sleep(Duration::from_secs(1)).await;
+      sleep(Duration::from_secs(100)).await;
     }
   }
 }

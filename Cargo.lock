@@ -10349,7 +10349,6 @@ dependencies = [
  "actix-middleware",
  "actix-rt",
  "actix-web",
- "bcs",
  "bincode",
  "deadpool-redis",
  "dotenv",
