@@ -3,9 +3,10 @@ use eyre::{eyre, Result};
 use shared_crypto::intent::Intent;
 use sui_sdk::{SuiClient, rpc_types::{Coin, SuiTransactionBlockResponseOptions}};
 use sui_types::{
-  base_types::{ObjectID, SuiAddress, ObjectRef}, gas_coin::GasCoin, transaction::{Command, ObjectArg, TransactionData, Transaction},
+  base_types::{ObjectID, SuiAddress, ObjectRef}, transaction::{Command, ObjectArg, TransactionData, Transaction},
   programmable_transaction_builder::ProgrammableTransactionBuilder, quorum_driver_types::ExecuteTransactionRequestType,
 };
+use log::info;
 use tokio::time::{sleep, Duration};
 use crate::{
   storage::{redis::ConnectionPool, redlock::RedLock}, map_err,
@@ -94,6 +95,8 @@ impl CoinManager {
       self.redlock.unlock(lock).await;
     }
 
+    info!("Master coin is {:?}", self.master_coin);
+
     Ok(())
   }
 
@@ -101,6 +104,8 @@ impl CoinManager {
   /// Then it split the master coin into MAX_POOL_CAPACITY - CURRENT_POOL_COUNT equal coins; thus rebalancing
   /// Sponsor's coins and keeping Gas Pool liquid.
   async fn rebalance_coins(&self, input_coins: Vec<ObjectRef>, gas_pool_coin_count: usize) -> Result<()> {
+    info!("Rebalancing coins...");
+
     let mut ptb = ProgrammableTransactionBuilder::new();
     let master_coin_obj_ref = get_object_ref(Arc::clone(&self.api), self.master_coin.unwrap()).await?;
 
@@ -118,11 +123,14 @@ impl CoinManager {
       );
       ptb.command(merge_coin_cmd);
     }
+
     // 2. Split the master coin into MAX_POOL_CAPACITY - CURRENT_POOL_COUNT each having `coin_balance`
     let amounts = vec![self.coin_balance; self.max_capacity - gas_pool_coin_count]
     .into_iter()
     .map(|a| ptb.pure(a).expect("pure arg"))
     .collect::<Vec<_>>();
+
+    info!("Number of new coins {}", amounts.len());
 
     let split_coin_cmd = Command::SplitCoins(
       map_err!(ptb.obj(ObjectArg::ImmOrOwnedObject(master_coin_obj_ref)))?,
@@ -159,6 +167,8 @@ impl CoinManager {
 
     println!(">>>>>>>> {:?}", transaction_response);
 
+    info!("Suceccessfully rebalanced coins");
+
     Ok(())
   }
 
@@ -167,12 +177,10 @@ impl CoinManager {
     let mut coins = vec![];
     let mut cursor = None;
 
-    println!(">>>>>>>>> {:?}", self.sponsor);
-
     loop {
       let response = self.api.coin_read_api().get_coins(
         self.sponsor,
-        Some(GasCoin::type_().to_canonical_string()),
+        None,
         cursor,
         None,
       )
