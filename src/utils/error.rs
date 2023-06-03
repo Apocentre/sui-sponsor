@@ -14,6 +14,6 @@ impl ResponseError for Error {}
 #[macro_export]
 macro_rules! map_err {
   ($fun:expr) => {
-    $fun.map_err(|e| eyre!(Box::new(e)))?
+    $fun.map_err(|e| eyre!(Box::new(e)))
   }
 }

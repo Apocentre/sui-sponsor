@@ -3,7 +3,7 @@ use eyre::{eyre, Result, Report};
 use sui_sdk::{SuiClient, rpc_types::{SuiTransactionBlockResponseOptions, Coin}};
 use shared_crypto::intent::Intent;
 use sui_types::{
-  base_types::{ObjectID, SuiAddress}, gas_coin::GasCoin, transaction::Transaction,
+  base_types::{ObjectID, SuiAddress}, gas_coin::GasCoin, transaction::{Transaction, Command},
   quorum_driver_types::ExecuteTransactionRequestType, programmable_transaction_builder::ProgrammableTransactionBuilder, TypeTag, Identifier
 };
 use tokio::time::{sleep, Duration};
@@ -89,9 +89,15 @@ impl CoinManager {
   }
 
   async fn merge_to_master_coin(&self, input_coins: Vec<ObjectID>) -> Result<()> {
-    let mut pt_builder = ProgrammableTransactionBuilder::new();
-    let sui_coin_arg_type = map_err!(TypeTag::from_str("0x2::sui::SUI"));
-    let split_fun = map_err!(Identifier::from_str("split"));
+    let mut ptb = ProgrammableTransactionBuilder::new();
+    let sui_coin_arg_type = map_err!(TypeTag::from_str("0x2::sui::SUI"))?;
+    let split_fun = map_err!(Identifier::from_str("split"))?
+    
+    let merge_coin_command = Command::MergeCoins(
+      ptb.obj(ObjectArg::ImmOrOwnedObject())
+    );
+
+    let merge_coins = pt_builder.command(merge_coin_command);
 
     let tx_data = self.api.transaction_builder().pay_all_sui(
       self.sponsor,

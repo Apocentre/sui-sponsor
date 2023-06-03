@@ -1,7 +1,8 @@
 use std::sync::Arc;
 use eyre::Result;
-use sui_sdk::{SuiClient, rpc_types::SuiObjectDataOptions};
+use sui_sdk::SuiClient;
 use sui_types::base_types::{ObjectRef, ObjectID};
+use crate::helpers::object::get_object_ref;
 
 pub struct GasPool {
   api: Arc<SuiClient>
@@ -19,14 +20,7 @@ impl GasPool {
     // TODO: implement the logic of gas pool management to get the correct gas object from the pool
     let object_id = ObjectID::random();
 
-    let object = self.api.read_api().get_object_with_options(
-      object_id,
-      SuiObjectDataOptions::new().with_type()
-    )
-    .await?
-    .into_object()?;
-
-    Ok(object.object_ref())
+    get_object_ref(Arc::clone(&self.api), object_id).await
   }
 }
 
