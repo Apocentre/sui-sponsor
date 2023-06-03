@@ -78,7 +78,9 @@ impl CoinManager {
     // transaction block;
     let total_gas_cost = 5_000_000;
     
+    // find the smallest big enough coin
     input_coins.iter()
+    .rev()
     .position(|c| c.balance >= total_gas_cost)
     .context("no gas payment coin found")
   }
@@ -167,7 +169,7 @@ impl CoinManager {
       .map(|c| ptb.obj(ObjectArg::ImmOrOwnedObject(c.object_ref())).expect("coin object ref"))
       .collect::<Vec<_>>();
 
-      let merge_coin_cmd = Command::MergeCoins(master_coin_arg, input_coin_args,);
+      let merge_coin_cmd = Command::MergeCoins(master_coin_arg, input_coin_args);
       ptb.command(merge_coin_cmd);
     }
 
@@ -179,7 +181,6 @@ impl CoinManager {
 
     let split_coin_cmd = Command::SplitCoins(master_coin_arg, amounts);
     let split_coin_result = ptb.command(split_coin_cmd);
-    
     ptb.transfer_arg(self.sponsor, split_coin_result);
 
     let pt = ptb.finish();
@@ -187,7 +188,7 @@ impl CoinManager {
       self.sponsor,
       vec![gas_payment],
       pt,
-      100_000,
+      5_000_000,
       gas_price,
     );
 
@@ -207,7 +208,7 @@ impl CoinManager {
     .await
     .expect("successul rebalancing");
 
-    ensure!(Self::has_errors(&response), "rebalancing failed");
+    ensure!(!Self::has_errors(&response), "rebalancing failed");
 
     let new_objects = get_created_objects(&response);
     info!("Suceccessfully rebalanced. Number of new coins {}", new_objects.len());

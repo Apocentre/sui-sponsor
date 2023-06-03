@@ -40,7 +40,7 @@ impl Redis {
     let args = zip(keys, values).collect::<Vec<_>>();
 
     cmd("MSET")
-    .arg(&[args])
+    .arg(&[&args])
     .query_async(&mut self.0).await
     .map_err(Into::<_>::into)
   }
