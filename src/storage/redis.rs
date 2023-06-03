@@ -1,3 +1,4 @@
+use std::iter::zip;
 use deadpool_redis::{Pool, Config, Connection, Runtime};
 use redis::cmd;
 use eyre::Result;
@@ -36,9 +37,10 @@ impl Redis {
   pub async fn mset<T: AsRef<str>>(&mut self, keys: Vec<T>, values: Vec<T>) -> Result<()> {
     let keys = keys.iter().map(AsRef::as_ref).collect::<Vec<_>>();
     let values = values.iter().map(AsRef::as_ref).collect::<Vec<_>>();
+    let args = zip(keys, values).collect::<Vec<_>>();
 
     cmd("MSET")
-    .arg(&[keys, values])
+    .arg(&[args])
     .query_async(&mut self.0).await
     .map_err(Into::<_>::into)
   }
