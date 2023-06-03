@@ -1,5 +1,5 @@
 use std::{sync::Arc};
-use eyre::{eyre, Result};
+use eyre::{Result, ensure, eyre};
 use shared_crypto::intent::Intent;
 use sui_sdk::{SuiClient, rpc_types::{Coin, SuiTransactionBlockResponseOptions}};
 use sui_types::{
@@ -74,24 +74,25 @@ impl CoinManager {
       // load from redis if exist. Make sure no other service performs the same set of actions
       let lock = self.redlock.lock(
         MASTER_COIN_KEY.as_bytes(),
-        Duration::from_secs(10000).as_millis() as usize,
+        Duration::from_secs(10).as_millis() as usize,
       ).await?;
 
       let mut conn = self.redis_pool.connection().await?;
 
-      // If there is no master coin in redis then set the biggest coin from the sponsor's coins set
+      // If there is master coin in redis we set it otherwise we set the biggest coin from the sponsor's coins set
       // The biggest coins in the first item in the list
-      let Ok(master_coin) = conn.get(MASTER_COIN_KEY).await else {
+      if let Ok(master_coin) = conn.get(MASTER_COIN_KEY).await {
+        self.master_coin = Some(ObjectID::from_hex_literal(&master_coin)?);
+        // remove master coin from the list of sponsor_coins
+        sponsor_coins.remove(
+          sponsor_coins.iter().position(|(c, _, _)| *c == self.master_coin.unwrap()
+        ).unwrap());
+      } else {
         self.master_coin = Some(sponsor_coins.first().expect("sponsor to have coins").clone().0);
-
         // Note! We exlcude the master coin from the coins that will
         sponsor_coins.remove(0);
+      }
 
-        return Ok(())
-      };
-
-      // otherwise use the Redis master coin. This will be shared by all other instances
-      self.master_coin = Some(ObjectID::from_hex_literal(&master_coin)?);
       self.redlock.unlock(lock).await;
     }
 
@@ -103,12 +104,16 @@ impl CoinManager {
   /// It will first merge all user coins (except for those that are still in the Gas Pool) into the master coin.
   /// Then it split the master coin into MAX_POOL_CAPACITY - CURRENT_POOL_COUNT equal coins; thus rebalancing
   /// Sponsor's coins and keeping Gas Pool liquid.
-  async fn rebalance_coins(&self, input_coins: Vec<ObjectRef>, gas_pool_coin_count: usize) -> Result<()> {
+  async fn rebalance_coins(
+    &self,
+    input_coins: Vec<ObjectRef>,
+    gas_pool_coin_count: usize,
+  ) -> Result<()> {
     info!("Rebalancing coins...");
 
     let mut ptb = ProgrammableTransactionBuilder::new();
     let master_coin_obj_ref = get_object_ref(Arc::clone(&self.api), self.master_coin.unwrap()).await?;
-
+    
     // 1. Merge all these coins into the master coin 
     // If the sponsor has only one coin the input_coins (which exclude the master coin) will be empty and thus
     // we can skip the merge step in this iteration.
@@ -116,6 +121,8 @@ impl CoinManager {
       let input_coin_args = input_coins.into_iter()
       .map(|c| ptb.obj(ObjectArg::ImmOrOwnedObject(c)).expect("coin object ref"))
       .collect::<Vec<_>>();
+
+      println!(">>>>>>>>>>>>> {:?}", input_coin_args);
 
       let merge_coin_cmd = Command::MergeCoins(
         map_err!(ptb.obj(ObjectArg::ImmOrOwnedObject(master_coin_obj_ref)))?,
@@ -131,6 +138,8 @@ impl CoinManager {
     .collect::<Vec<_>>();
 
     info!("Number of new coins {}", amounts.len());
+  
+    println!(">>>>>>>>>>>>> {:?}", master_coin_obj_ref);
 
     let split_coin_cmd = Command::SplitCoins(
       map_err!(ptb.obj(ObjectArg::ImmOrOwnedObject(master_coin_obj_ref)))?,
@@ -199,21 +208,13 @@ impl CoinManager {
   /// Main execution logic
   pub async fn execute(&mut self, current_coins: Vec<String>) -> Result<()> {
     // 1. Load all coins that belong to the sponsor account
-    let coins = self.fetch_coins()
-    .await?
-    .into_iter()
-    .map(|c| c.object_ref())
-    .collect::<Vec<_>>();
-
-    // TODO: We might want to send a notification i.e. email instead of panicking 
-    if coins.len() == 0 {
-      panic!("Sponsor MUST have at least one coin");
-    }
-    
+    let coins = self.fetch_coins().await?;
+    ensure!(coins.len() > 1, "Sponsor MUST have at least two coins");
     let gas_pool_coin_count = current_coins.len();
 
     // 2. Exclude the ones that are currently in the Gas Pool
     let mut input_coins = coins.into_iter()
+    .map(|c| c.object_ref())
     .filter(|(c, _, _)| !current_coins.contains(&c.to_hex_literal()))
     .collect::<Vec<_>>();
     
