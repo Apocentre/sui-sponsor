@@ -32,7 +32,7 @@ pub struct CoinManager {
   max_capacity: usize,
   min_pool_count: usize,
   // The minimum balance each coin that is created and added to the Gas Pool should have
-  min_coin_balance: u64,
+  coin_balance: u64,
   /// This is the coin that we all other coins will be merged into. We will select one of Sponsor's coins during the first
   /// run of the gas coin creation logic below.
   master_coin: Option<ObjectID>,
@@ -48,7 +48,7 @@ impl CoinManager {
     redlock: Arc<RedLock>,
     max_capacity: usize,
     min_pool_count: usize,
-    min_coin_balance: u64,
+    coin_balance: u64,
     sponsor: SuiAddress,
   ) -> Self {
     Self {
@@ -59,7 +59,7 @@ impl CoinManager {
       redlock,
       max_capacity,
       min_pool_count,
-      min_coin_balance,
+      coin_balance,
       master_coin: None,
       sponsor
     }
@@ -118,8 +118,8 @@ impl CoinManager {
       );
       ptb.command(merge_coin_cmd);
     }
-    // 2. Split the master coin into MAX_POOL_CAPACITY - CURRENT_POOL_COUNT each having `min_coin_balance`
-    let amounts = vec![self.min_coin_balance; self.max_capacity - gas_pool_coin_count]
+    // 2. Split the master coin into MAX_POOL_CAPACITY - CURRENT_POOL_COUNT each having `coin_balance`
+    let amounts = vec![self.coin_balance; self.max_capacity - gas_pool_coin_count]
     .into_iter()
     .map(|a| ptb.pure(a).expect("pure arg"))
     .collect::<Vec<_>>();
@@ -166,6 +166,8 @@ impl CoinManager {
   async fn fetch_coins(&self) -> Result<Vec<Coin>> {
     let mut coins = vec![];
     let mut cursor = None;
+
+    println!(">>>>>>>>> {:?}", self.sponsor);
 
     loop {
       let response = self.api.coin_read_api().get_coins(

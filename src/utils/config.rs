@@ -25,8 +25,8 @@ pub struct GasPoolConfig {
   pub max_capacity: usize,
   #[envconfig(from = "MIN_POOL_COUNT")]
   pub min_pool_count: usize,
-  #[envconfig(from = "MIN_COIN_BALANCE")]
-  pub min_coin_balance: u64,
+  #[envconfig(from = "COIN_BALANCE")]
+  pub coin_balance: u64,
 }
 
 #[derive(Envconfig)]

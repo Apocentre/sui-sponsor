@@ -47,7 +47,7 @@ impl Store {
       Arc::clone(&redlock),
       config.gas_pool.max_capacity,
       config.gas_pool.min_pool_count,
-      config.gas_pool.min_coin_balance,
+      config.gas_pool.coin_balance,
       sponsor_address,
     )));
 
