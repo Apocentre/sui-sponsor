@@ -194,6 +194,11 @@ impl CoinManager {
     .into_iter()
     .map(|c| c.object_ref())
     .collect::<Vec<_>>();
+
+    // TODO: We might want to send a notification i.e. email instead of panicking 
+    if coins.len() == 0 {
+      panic!("Sponsor MUST have at least one coin");
+    }
     
     let gas_pool_coin_count = current_coins.len();
 
