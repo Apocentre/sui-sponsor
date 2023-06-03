@@ -103,17 +103,21 @@ impl CoinManager {
   async fn rebalance_coins(&self, input_coins: Vec<ObjectRef>, gas_pool_coin_count: usize) -> Result<()> {
     let mut ptb = ProgrammableTransactionBuilder::new();
     let master_coin_obj_ref = get_object_ref(Arc::clone(&self.api), self.master_coin.unwrap()).await?;
-    let input_coin_args = input_coins.into_iter()
-    .map(|c| ptb.obj(ObjectArg::ImmOrOwnedObject(c)).expect("coin object ref"))
-    .collect::<Vec<_>>();
 
     // 1. Merge all these coins into the master coin 
-    let merge_coin_cmd = Command::MergeCoins(
-      map_err!(ptb.obj(ObjectArg::ImmOrOwnedObject(master_coin_obj_ref)))?,
-      input_coin_args,
-    );
-    ptb.command(merge_coin_cmd);
+    // If the sponsor has only one coin the input_coins (which exclude the master coin) will be empty and thus
+    // we can skip the merge step in this iteration.
+    if input_coins.len() > 0 {
+      let input_coin_args = input_coins.into_iter()
+      .map(|c| ptb.obj(ObjectArg::ImmOrOwnedObject(c)).expect("coin object ref"))
+      .collect::<Vec<_>>();
 
+      let merge_coin_cmd = Command::MergeCoins(
+        map_err!(ptb.obj(ObjectArg::ImmOrOwnedObject(master_coin_obj_ref)))?,
+        input_coin_args,
+      );
+      ptb.command(merge_coin_cmd);
+    }
     // 2. Split the master coin into MAX_POOL_CAPACITY - CURRENT_POOL_COUNT each having `min_coin_balance`
     let amounts = vec![self.min_coin_balance; self.max_capacity - gas_pool_coin_count]
     .into_iter()
@@ -182,6 +186,7 @@ impl CoinManager {
     Ok(coins)
   }
 
+  /// Main execution logic
   pub async fn execute(&mut self, current_coins: Vec<String>) -> Result<()> {
     // 1. Load all coins that belong to the sponsor account
     let coins = self.fetch_coins()
@@ -203,11 +208,12 @@ impl CoinManager {
     // 4. Rebalance coins
     self.rebalance_coins(input_coins, gas_pool_coin_count).await?;
     
-
-    // 6. Store the new coins into the pool; one Redis entry for each object id
+    // 6. TODO: Store the new coins into the pool; one Redis entry for each object id
+    
     Ok(())
   }
 
+  /// read the gas pool coins from Redis
   async fn get_pool_coins(&self) -> Result<Vec<String>> {
     // check the numbet of Gas coins in the pool
     let mut conn = self.redis_pool.connection().await?;
