@@ -3,19 +3,17 @@ use eyre::{Result, ensure, eyre};
 use shared_crypto::intent::Intent;
 use sui_sdk::{SuiClient, rpc_types::{Coin, SuiTransactionBlockResponseOptions}};
 use sui_types::{
-  base_types::{ObjectID, SuiAddress, ObjectRef}, transaction::{Command, ObjectArg, TransactionData, Transaction},
+  base_types::{SuiAddress, ObjectRef}, transaction::{Command, ObjectArg, TransactionData, Transaction},
   programmable_transaction_builder::ProgrammableTransactionBuilder, quorum_driver_types::ExecuteTransactionRequestType,
 };
 use log::info;
 use tokio::time::{sleep, Duration};
 use crate::{
-  storage::{redis::ConnectionPool, redlock::RedLock}, map_err,
-  helpers::object::get_object_ref,
+  storage::{redis::ConnectionPool}, map_err,
 };
 use super::{wallet::Wallet, gas_meter::GasMeter};
 
 const GAS_KEY_PREFIX: &str = "gas:";
-const MASTER_COIN_KEY: &str = "gas::master_coin";
 
 /// The role of CoinManager is to merge small coins into a single one and the split those into smaller ones.
 /// Those smaller coins will be added into the Gas Pool and later consumer by the GasPool service.
@@ -29,14 +27,10 @@ pub struct CoinManager {
   wallet: Arc<Wallet>,
   gas_meter: Arc<GasMeter>,
   redis_pool: Arc<ConnectionPool>,
-  redlock: Arc<RedLock>,
   max_capacity: usize,
   min_pool_count: usize,
   // The minimum balance each coin that is created and added to the Gas Pool should have
   coin_balance: u64,
-  /// This is the coin that we all other coins will be merged into. We will select one of Sponsor's coins during the first
-  /// run of the gas coin creation logic below.
-  master_coin: Option<ObjectID>,
   sponsor: SuiAddress,
 }
 
@@ -46,7 +40,6 @@ impl CoinManager {
     wallet: Arc<Wallet>,
     gas_meter: Arc<GasMeter>,
     redis_pool: Arc<ConnectionPool>,
-    redlock: Arc<RedLock>,
     max_capacity: usize,
     min_pool_count: usize,
     coin_balance: u64,
@@ -57,62 +50,30 @@ impl CoinManager {
       wallet,
       gas_meter,
       redis_pool,
-      redlock,
       max_capacity,
       min_pool_count,
       coin_balance,
-      master_coin: None,
       sponsor
     }
   }
 
-  /// Set the master coin. This will be common for all instances of this service so it has to work in
-  /// a distributed environment. That's why we use a distributed lock.
-  async fn set_master_coin(&mut self, sponsor_coins: &mut Vec<ObjectRef>) -> Result<()> {
-    // when the service start there is no in-memory master coin
-    if let None = self.master_coin {
-      // load from redis if exist. Make sure no other service performs the same set of actions
-      let lock = self.redlock.lock(
-        MASTER_COIN_KEY.as_bytes(),
-        Duration::from_secs(10).as_millis() as usize,
-      ).await?;
-
-      let mut conn = self.redis_pool.connection().await?;
-
-      // If there is master coin in redis we set it otherwise we set the biggest coin from the sponsor's coins set
-      // The biggest coins in the first item in the list
-      if let Ok(master_coin) = conn.get(MASTER_COIN_KEY).await {
-        self.master_coin = Some(ObjectID::from_hex_literal(&master_coin)?);
-        // remove master coin from the list of sponsor_coins
-        sponsor_coins.remove(
-          sponsor_coins.iter().position(|(c, _, _)| *c == self.master_coin.unwrap()
-        ).unwrap());
-      } else {
-        self.master_coin = Some(sponsor_coins.first().expect("sponsor to have coins").clone().0);
-        // Note! We exlcude the master coin from the coins that will
-        sponsor_coins.remove(0);
-      }
-
-      self.redlock.unlock(lock).await;
-    }
-
-    info!("Master coin is {:?}", self.master_coin);
-
-    Ok(())
-  }
 
   /// It will first merge all user coins (except for those that are still in the Gas Pool) into the master coin.
   /// Then it split the master coin into MAX_POOL_CAPACITY - CURRENT_POOL_COUNT equal coins; thus rebalancing
   /// Sponsor's coins and keeping Gas Pool liquid.
   async fn rebalance_coins(
     &self,
-    input_coins: Vec<ObjectRef>,
+    mut input_coins: Vec<ObjectRef>,
     gas_pool_coin_count: usize,
   ) -> Result<()> {
     info!("Rebalancing coins...");
 
     let mut ptb = ProgrammableTransactionBuilder::new();
-    let master_coin_obj_ref = get_object_ref(Arc::clone(&self.api), self.master_coin.unwrap()).await?;
+    // Use the first coin as the master coin
+    let master_coin_obj_ref = input_coins[0].clone();
+    input_coins.remove(0);
+
+    input_coins.iter().for_each(|c| println!("Input coin >>>>>>>> {c:?}"));
     
     // 1. Merge all these coins into the master coin 
     // If the sponsor has only one coin the input_coins (which exclude the master coin) will be empty and thus
@@ -121,8 +82,6 @@ impl CoinManager {
       let input_coin_args = input_coins.into_iter()
       .map(|c| ptb.obj(ObjectArg::ImmOrOwnedObject(c)).expect("coin object ref"))
       .collect::<Vec<_>>();
-
-      println!(">>>>>>>>>>>>> {:?}", input_coin_args);
 
       let merge_coin_cmd = Command::MergeCoins(
         map_err!(ptb.obj(ObjectArg::ImmOrOwnedObject(master_coin_obj_ref)))?,
@@ -209,22 +168,20 @@ impl CoinManager {
   pub async fn execute(&mut self, current_coins: Vec<String>) -> Result<()> {
     // 1. Load all coins that belong to the sponsor account
     let coins = self.fetch_coins().await?;
-    ensure!(coins.len() > 1, "Sponsor MUST have at least two coins");
-    let gas_pool_coin_count = current_coins.len();
-
+    let non_empty_coins = coins.iter().filter(|c| c.balance > 0).count();
+    ensure!(non_empty_coins > 1, "Sponsor MUST have at least two coins");
+    
     // 2. Exclude the ones that are currently in the Gas Pool
-    let mut input_coins = coins.into_iter()
+    let input_coins = coins.into_iter()
     .map(|c| c.object_ref())
     .filter(|(c, _, _)| !current_coins.contains(&c.to_hex_literal()))
     .collect::<Vec<_>>();
-    
-    // 3. Set the master coin if needed.
-    self.set_master_coin(&mut input_coins).await?;
-    
-    // 4. Rebalance coins
+  
+    // 3. Rebalance coins
+    let gas_pool_coin_count = current_coins.len();
     self.rebalance_coins(input_coins, gas_pool_coin_count).await?;
     
-    // 6. TODO: Store the new coins into the pool; one Redis entry for each object id
+    // 4. TODO: Store the new coins into the pool; one Redis entry for each object id
     
     Ok(())
   }

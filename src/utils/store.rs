@@ -44,7 +44,6 @@ impl Store {
       Arc::clone(&wallet),
       Arc::clone(&gas_meter),
       Arc::clone(&redis_pool),
-      Arc::clone(&redlock),
       config.gas_pool.max_capacity,
       config.gas_pool.min_pool_count,
       config.gas_pool.coin_balance,
