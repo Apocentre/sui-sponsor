@@ -33,3 +33,12 @@ MIN_POOL_COUNT=
 // The balance of each coin that is created and added to the pool
 COIN_BALANCE=
 ```
+
+## Coin Manager
+The role of CoinManager is to merge small coins into a single one and the split those into smaller ones. Those smaller coins will be added into the Gas Pool and later consumer by the GasPool service. In essence, this service will make sure that the GasPool has always enough Gas Coins and that the Sponsor account does not have too many dust Gas Coins. More specicifaclly, Gas Coins are used in sponsored transactions and thus their balance is getting low over time. At some point each such Gas coin will be so small that it cannot be used in any sponsored transaction. CoinManager will make sure to clear up those dust coins and recreate big enough coins which are added back to the Gas Pool.
+
+The rebalance process is as follows:
+- Merge all object that are not currently in the Gas Pool into a single Coin. The single coins is called master coin and it's the largest (in balance) coin that Sponsor account holds.
+- Split the above master coin into enough new Coin objects to fill the Gas Pool. The number of coins to be created is `MAX_POOL_CAPACITY - CURRENT_POOL_COUNT`.
+
+We use a Programmable Transaction Block to run these two transaction in a single Block Transaction. The Coin Manager will us the first coin as the master coin as explained above. It will also use the second largest coins as the one that will be used to 

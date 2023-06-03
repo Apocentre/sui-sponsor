@@ -57,24 +57,34 @@ impl CoinManager {
     }
   }
 
-
   /// It will first merge all user coins (except for those that are still in the Gas Pool) into the master coin.
   /// Then it split the master coin into MAX_POOL_CAPACITY - CURRENT_POOL_COUNT equal coins; thus rebalancing
   /// Sponsor's coins and keeping Gas Pool liquid.
   async fn rebalance_coins(
     &self,
     mut input_coins: Vec<ObjectRef>,
+    largest_coin_balance: u64,
     gas_pool_coin_count: usize,
   ) -> Result<()> {
     info!("Rebalancing coins...");
 
+    let gas_price = self.gas_meter.gas_price().await?;
     let mut ptb = ProgrammableTransactionBuilder::new();
-    // Use the first coin as the master coin
-    let master_coin_obj_ref = input_coins[0].clone();
+    // Use the first coin as the gas payment coin. Exclude it from the other input coins.
+    let gas_payment = input_coins[0].clone();
     input_coins.remove(0);
 
-    input_coins.iter().for_each(|c| println!("Input coin >>>>>>>> {c:?}"));
-    
+    // Split the richest coin into a new one which will consume the entire balance except for the gas cost. The result will
+    // be a new coin which we can use as the coin that we will be merging all the other input coins and later split.
+    // TODO: we use a hard-coded value. We should improve this by trying to calculate how much MIST is needed
+    // to pay for the rebalancing transaction block.
+    let split_coin_cmd = Command::SplitCoins(
+      map_err!(ptb.obj(ObjectArg::ImmOrOwnedObject(gas_payment)))?,
+      vec![ptb.pure(largest_coin_balance - 5_000_000).expect("pure arg")],
+    );
+    // Split coin will return the newly create coin which we can use as Argument for the merge/split coins commands
+    let master_coin = ptb.command(split_coin_cmd);
+
     // 1. Merge all these coins into the master coin 
     // If the sponsor has only one coin the input_coins (which exclude the master coin) will be empty and thus
     // we can skip the merge step in this iteration.
@@ -84,7 +94,7 @@ impl CoinManager {
       .collect::<Vec<_>>();
 
       let merge_coin_cmd = Command::MergeCoins(
-        map_err!(ptb.obj(ObjectArg::ImmOrOwnedObject(master_coin_obj_ref)))?,
+        master_coin,
         input_coin_args,
       );
       ptb.command(merge_coin_cmd);
@@ -95,13 +105,11 @@ impl CoinManager {
     .into_iter()
     .map(|a| ptb.pure(a).expect("pure arg"))
     .collect::<Vec<_>>();
-
+    
     info!("Number of new coins {}", amounts.len());
   
-    println!(">>>>>>>>>>>>> {:?}", master_coin_obj_ref);
-
     let split_coin_cmd = Command::SplitCoins(
-      map_err!(ptb.obj(ObjectArg::ImmOrOwnedObject(master_coin_obj_ref)))?,
+      master_coin,
       amounts,
     );
     ptb.command(split_coin_cmd);
@@ -109,10 +117,10 @@ impl CoinManager {
     let pt = ptb.finish();
     let tx_data = TransactionData::new_programmable(
       self.sponsor,
-      vec![master_coin_obj_ref],
+      vec![gas_payment],
       pt,
       100_000,
-      self.gas_meter.gas_price().await?,
+      gas_price,
     );
 
     let response = self.api
@@ -170,7 +178,8 @@ impl CoinManager {
     let coins = self.fetch_coins().await?;
     let non_empty_coins = coins.iter().filter(|c| c.balance > 0).count();
     ensure!(non_empty_coins > 1, "Sponsor MUST have at least two coins");
-    
+    let master_coin_balance =  coins[0].balance;
+
     // 2. Exclude the ones that are currently in the Gas Pool
     let input_coins = coins.into_iter()
     .map(|c| c.object_ref())
@@ -179,7 +188,11 @@ impl CoinManager {
   
     // 3. Rebalance coins
     let gas_pool_coin_count = current_coins.len();
-    self.rebalance_coins(input_coins, gas_pool_coin_count).await?;
+    self.rebalance_coins(
+      input_coins,
+      master_coin_balance,
+      gas_pool_coin_count,
+    ).await?;
     
     // 4. TODO: Store the new coins into the pool; one Redis entry for each object id
     
