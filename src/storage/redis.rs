@@ -45,7 +45,6 @@ impl Redis {
     .map_err(Into::<_>::into)
   }
 
-
   pub async fn set_ext<T: AsRef<str>>(&mut self, key: T, value: T, secs: usize) -> Result<()> {
     cmd("SETEX")
     .arg(&[key.as_ref(), &secs.to_string(), value.as_ref()])

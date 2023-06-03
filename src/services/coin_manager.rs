@@ -1,7 +1,13 @@
 use std::{sync::Arc};
 use eyre::{Result, ensure, eyre, ContextCompat};
 use shared_crypto::intent::Intent;
-use sui_sdk::{SuiClient, rpc_types::{Coin, SuiTransactionBlockResponseOptions}};
+use sui_sdk::{
+  SuiClient,
+  rpc_types::{
+    Coin, SuiTransactionBlockResponseOptions, SuiTransactionBlockResponse, SuiTransactionBlockEffects,
+    SuiExecutionStatus,
+  },
+};
 use sui_types::{
   base_types::{SuiAddress, ObjectID}, transaction::{Command, ObjectArg, TransactionData, Transaction},
   programmable_transaction_builder::ProgrammableTransactionBuilder, quorum_driver_types::ExecuteTransactionRequestType,
@@ -77,6 +83,59 @@ impl CoinManager {
     .context("no gas payment coin found")
   }
 
+  /// Fetches all coins that belong to the sponsor. It will return a sorted array of coins according to their balance
+  async fn fetch_coins(&self) -> Result<Vec<Coin>> {
+    let mut coins = vec![];
+    let mut cursor = None;
+
+    loop {
+      let response = self.api.coin_read_api().get_coins(
+        self.sponsor,
+        None,
+        cursor,
+        None,
+      )
+      .await?;
+
+      coins.extend(response.data);
+
+      if !response.has_next_page {break}
+      cursor = response.next_cursor;
+    }
+
+    coins.sort_by(|a, b| b.balance.cmp(&a.balance));
+    Ok(coins)
+  }
+
+  /// It will add all newly created coin object ids to Redis, as well as, push
+  /// to the distrubuted queue to be consumed by the Gas Pool.
+  pub async fn process_new_coins(&self, new_coins: Vec<ObjectID>) -> Result<()> {
+    let new_coins = new_coins.iter()
+    .map(|c| c.to_hex_uncompressed())
+    .collect::<Vec<_>>();
+
+    let len = new_coins.len();
+    let mut conn = self.redis_pool.connection().await?;
+    // the value is irrelevant; we just use number 1 as a convention
+    conn.mset(new_coins, vec!["1".to_string(); len]).await?;
+    
+    Ok(())
+  }
+
+  fn has_errors(response: &SuiTransactionBlockResponse) -> bool {
+    if response.errors.len() == 0 {return true}
+
+    if let Some(effects) = response.effects.as_ref() {
+      let SuiTransactionBlockEffects::V1(effects) = effects;
+      
+      if let SuiExecutionStatus::Failure {..} = effects.status {
+        return true
+      } 
+    }
+
+    false
+  }
+
   /// It will first merge all user coins (except for those that are still in the Gas Pool) into the master coin.
   /// Then it split the master coin into MAX_POOL_CAPACITY - CURRENT_POOL_COUNT equal coins; thus rebalancing
   /// Sponsor's coins and keeping Gas Pool liquid.
@@ -148,51 +207,12 @@ impl CoinManager {
     .await
     .expect("successul rebalancing");
 
-    ensure!(response.errors.len() == 0, "rebalancing failed");
+    ensure!(Self::has_errors(&response), "rebalancing failed");
 
     let new_objects = get_created_objects(&response);
     info!("Suceccessfully rebalanced. Number of new coins {}", new_objects.len());
   
     Ok(new_objects)
-  }
-
-  /// Fetches all coins that belong to the sponsor. It will return a sorted array of coins according to their balance
-  async fn fetch_coins(&self) -> Result<Vec<Coin>> {
-    let mut coins = vec![];
-    let mut cursor = None;
-
-    loop {
-      let response = self.api.coin_read_api().get_coins(
-        self.sponsor,
-        None,
-        cursor,
-        None,
-      )
-      .await?;
-
-      coins.extend(response.data);
-
-      if !response.has_next_page {break}
-      cursor = response.next_cursor;
-    }
-
-    coins.sort_by(|a, b| b.balance.cmp(&a.balance));
-    Ok(coins)
-  }
-
-  /// It will add all newly created coin object ids to Redis, as well as, push
-  /// to the distrubuted queue to be consumed by the Gas Pool.
-  pub async fn process_new_coins(&self, new_coins: Vec<ObjectID>) -> Result<()> {
-    let new_coins = new_coins.iter()
-    .map(|c| c.to_hex_uncompressed())
-    .collect::<Vec<_>>();
-
-    let len = new_coins.len();
-    let mut conn = self.redis_pool.connection().await?;
-    // the value is irrelevant; we just use number 1 as a convention
-    conn.mset(new_coins, vec!["1".to_string(); len]).await?;
-    
-    Ok(())
   }
 
   /// Main execution logic
