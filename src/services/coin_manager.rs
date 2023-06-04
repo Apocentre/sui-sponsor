@@ -20,6 +20,11 @@ use crate::{
 use super::{wallet::Wallet, gas_meter::GasMeter};
 
 const GAS_KEY_PREFIX: &str = "gas:";
+// This is roughly how much we need to split into 100 coins for the first time.
+// Here is an example https://suiexplorer.com/txblock/BMU7d8QJpRQQ9oXZkUPGufUHsfZcc1tWaKtBpCkWjDBC?network=devnet.
+// Subsequent calls will require way lower gas because there is a storage rebate from merging coins into one. Here
+// is an example of a subsequent tx https://suiexplorer.com/txblock/6SrtMgLUwRv1Xw8YqGmmHHv8c6EVxYnABQXQW5CNSyfq?network=devnet
+const GAS_BUDGET: u64 = 150_000_000;
 
 /// The role of CoinManager is to merge small coins into a single one and the split those into smaller ones.
 /// Those smaller coins will be added into the Gas Pool and later consumer by the GasPool service.
@@ -67,7 +72,7 @@ impl CoinManager {
   async fn get_pool_coins(&self) -> Result<Vec<String>> {
     // check the numbet of Gas coins in the pool
     let mut conn = self.redis_pool.connection().await?;
-    let gas_coins = conn.keys(GAS_KEY_PREFIX).await?;
+    let gas_coins = conn.keys(format!("{GAS_KEY_PREFIX}*")).await?;
 
     Ok(gas_coins)
   }
@@ -76,13 +81,16 @@ impl CoinManager {
   fn get_gas_payment_coin_index(input_coins: &Vec<Coin>) -> Result<usize> {
     // TODO: We need to calculate the amount of gas cost that will be required to pay for the rebalance_coin
     // transaction block;
-    let total_gas_cost = 5_000_000;
+    let total_gas_cost = GAS_BUDGET;
     
     // find the smallest big enough coin
-    input_coins.iter()
+    let pos = input_coins.iter()
     .rev()
     .position(|c| c.balance >= total_gas_cost)
-    .context("no gas payment coin found")
+    .context("no gas payment coin found")?;
+
+    // Get the original index not the reverse
+    Ok(input_coins.len() - 1 - pos)
   }
 
   /// Fetches all coins that belong to the sponsor. It will return a sorted array of coins according to their balance
@@ -113,7 +121,7 @@ impl CoinManager {
   /// to the distrubuted queue to be consumed by the Gas Pool.
   pub async fn process_new_coins(&self, new_coins: Vec<ObjectID>) -> Result<()> {
     let new_coins = new_coins.iter()
-    .map(|c| c.to_hex_uncompressed())
+    .map(|c| format!("{}{}", GAS_KEY_PREFIX, c.to_hex_uncompressed()))
     .collect::<Vec<_>>();
 
     let len = new_coins.len();
@@ -125,7 +133,7 @@ impl CoinManager {
   }
 
   fn has_errors(response: &SuiTransactionBlockResponse) -> bool {
-    if response.errors.len() == 0 {return true}
+    if response.errors.len() > 0 {return true}
 
     if let Some(effects) = response.effects.as_ref() {
       let SuiTransactionBlockEffects::V1(effects) = effects;
@@ -174,7 +182,8 @@ impl CoinManager {
     }
 
     // 2. Split the master coin into MAX_POOL_CAPACITY - CURRENT_POOL_COUNT each having `coin_balance`
-    let amounts = vec![self.coin_balance; self.max_capacity - gas_pool_coin_count]
+    let new_coin_count = self.max_capacity - gas_pool_coin_count;
+    let amounts = vec![self.coin_balance; new_coin_count]
     .into_iter()
     .map(|a| ptb.pure(a).expect("pure arg"))
     .collect::<Vec<_>>();
@@ -199,7 +208,7 @@ impl CoinManager {
       self.sponsor,
       vec![gas_payment],
       pt,
-      5_000_000,
+      GAS_BUDGET,
       gas_price,
     );
 
