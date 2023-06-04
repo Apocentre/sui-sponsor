@@ -1,4 +1,4 @@
-use std::{sync::Arc};
+use std::{sync::Arc, str::FromStr};
 use eyre::{Result, ensure, eyre, ContextCompat};
 use shared_crypto::intent::Intent;
 use sui_sdk::{
@@ -10,7 +10,7 @@ use sui_sdk::{
 };
 use sui_types::{
   base_types::{SuiAddress, ObjectID}, transaction::{Command, ObjectArg, TransactionData, Transaction},
-  programmable_transaction_builder::ProgrammableTransactionBuilder, quorum_driver_types::ExecuteTransactionRequestType,
+  programmable_transaction_builder::ProgrammableTransactionBuilder, quorum_driver_types::ExecuteTransactionRequestType, Identifier, SUI_FRAMEWORK_PACKAGE_ID, coin, TypeTag,
 };
 use log::info;
 use tokio::time::{sleep, Duration};
@@ -179,9 +179,20 @@ impl CoinManager {
     .map(|a| ptb.pure(a).expect("pure arg"))
     .collect::<Vec<_>>();
 
-    let split_coin_cmd = Command::SplitCoins(master_coin_arg, amounts);
-    let split_coin_result = ptb.command(split_coin_cmd);
-    ptb.transfer_arg(self.sponsor, split_coin_result);
+    // We could in theory use one single `Command::SplitCoins`. The issue is that `ptb.transfer_arg` on the
+    // newly created coin was failing. Instead we just create multiple individual calls.
+    let sui_coin_arg_type = map_err!(TypeTag::from_str("0x2::sui::SUI"))?;
+    for amount in amounts {
+      let new_coin_result = ptb.programmable_move_call(
+        SUI_FRAMEWORK_PACKAGE_ID,
+        coin::COIN_MODULE_NAME.to_owned(),
+        map_err!(Identifier::from_str("split"))?,
+        vec![sui_coin_arg_type.clone()],
+        vec![master_coin_arg, amount],
+      );
+  
+      ptb.transfer_arg(self.sponsor, new_coin_result);
+    }
 
     let pt = ptb.finish();
     let tx_data = TransactionData::new_programmable(
