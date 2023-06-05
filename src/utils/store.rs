@@ -31,9 +31,16 @@ impl Store {
     let redis_pool = Arc::new(ConnectionPool::new(&config.redis.host, &config.redis.password, config.redis.port));
     let redlock = Arc::new(RedLock::new(vec![&config.redis.host], &config.redis.password));
 
+    let coin_object_producer = Arc::new(
+      CoinObjectProducer::try_new(
+        config.rabbitmq.uri.clone(),
+        config.rabbitmq.retry_ttl
+      ).await.expect("create coin object producer")
+    );
+
     let wallet = Arc::new(Wallet::new(config.sui.sponsor_keypair.clone()));
     let sponsor_address = wallet.address();
-    let gas_pool = GasPool::new(Arc::clone(&rpc_client));
+    let gas_pool = GasPool::new(Arc::clone(&rpc_client), Arc::clone(&coin_object_producer));
     let gas_meter = Arc::new(GasMeter::new(Arc::clone(&rpc_client)));
     let sponsor = Sponsor::new(
       Arc::clone(&wallet),
@@ -46,18 +53,12 @@ impl Store {
       Arc::clone(&wallet),
       Arc::clone(&gas_meter),
       Arc::clone(&redis_pool),
+      Arc::clone(&coin_object_producer),
       config.gas_pool.max_capacity,
       config.gas_pool.min_pool_count,
       config.gas_pool.coin_balance,
       sponsor_address,
     )));
-
-    let coin_object_producer = Arc::new(
-      CoinObjectProducer::try_new(
-        config.rabbitmq.uri.clone(),
-        config.rabbitmq.retry_ttl
-      ).await.expect("create coin object producer")
-    );
 
     Self {
       config,

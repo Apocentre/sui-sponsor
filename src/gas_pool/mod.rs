@@ -5,14 +5,16 @@ use eyre::Result;
 use sui_sdk::SuiClient;
 use sui_types::base_types::{ObjectRef, ObjectID};
 use crate::helpers::object::get_object_ref;
+use self::coin_object_producer::CoinObjectProducer;
 
 pub struct GasPool {
-  api: Arc<SuiClient>
+  api: Arc<SuiClient>,
+  coin_object_producer: Arc<CoinObjectProducer>,
 }
 
 impl GasPool {
-  pub fn new(api: Arc<SuiClient>) -> Self {
-    Self {api}
+  pub fn new(api: Arc<SuiClient>, coin_object_producer: Arc<CoinObjectProducer>) -> Self {
+    Self {api, coin_object_producer}
   }
 
   /// Core gas pool logic. It will make sure that a safe Gas Coin Object will be used. This means

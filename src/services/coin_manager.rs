@@ -16,6 +16,7 @@ use log::info;
 use tokio::time::{sleep, Duration};
 use crate::{
   storage::{redis::ConnectionPool}, map_err, helpers::object::get_created_objects,
+  gas_pool::coin_object_producer::CoinObjectProducer,
 };
 use super::{wallet::Wallet, gas_meter::GasMeter};
 
@@ -38,6 +39,7 @@ pub struct CoinManager {
   wallet: Arc<Wallet>,
   gas_meter: Arc<GasMeter>,
   redis_pool: Arc<ConnectionPool>,
+  coin_object_producer: Arc<CoinObjectProducer>,
   max_capacity: usize,
   min_pool_count: usize,
   // The minimum balance each coin that is created and added to the Gas Pool should have
@@ -51,6 +53,7 @@ impl CoinManager {
     wallet: Arc<Wallet>,
     gas_meter: Arc<GasMeter>,
     redis_pool: Arc<ConnectionPool>,
+    coin_object_producer: Arc<CoinObjectProducer>,
     max_capacity: usize,
     min_pool_count: usize,
     coin_balance: u64,
@@ -61,6 +64,7 @@ impl CoinManager {
       wallet,
       gas_meter,
       redis_pool,
+      coin_object_producer,
       max_capacity,
       min_pool_count,
       coin_balance,
