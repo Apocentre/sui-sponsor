@@ -6,7 +6,7 @@ use eyre::{Result, ContextCompat, ensure};
 use sui_sdk::SuiClient;
 use sui_types::base_types::{ObjectRef, ObjectID};
 use amqp_helpers::{
-  Delivery, consumer::retry_consumer::{RetryConsumer, NextItem},
+  Delivery, consumer::pull_consumer::{PullConsumer, NextItem},
   BasicNackOptions, BasicAckOptions,
 };
 use crate::{helpers::object::get_object_ref, storage::redis::ConnectionPool};
@@ -17,7 +17,7 @@ const GAS_KEY_PREFIX: &str = "gas:";
 pub struct GasPool {
   api: Arc<SuiClient>,
   redis_pool: Arc<ConnectionPool>,
-  coin_object_consumer: RetryConsumer,
+  coin_object_consumer: PullConsumer,
   // We need to delivery object to ack/nack messages we receive from RabbitMQ. The process of requesting and confirming
   // gas object is asynchronous. Client first request the GasData object which we get from the queue. Client then will sign
   // a new transaction data including this signed GasData and send it back to us so we can transmit it to the network. It
@@ -32,14 +32,11 @@ impl GasPool {
     api: Arc<SuiClient>,
     redis_pool: Arc<ConnectionPool>,
     rabbitmq_uri: &str,
-    consumer_tag: &str,
   ) -> Self {
 
-    let coin_object_consumer = RetryConsumer::new(
+    let coin_object_consumer = PullConsumer::new(
       rabbitmq_uri,
       "coin_object",
-      consumer_tag,
-      0, // pre-fetch count infinite
     ).await.expect("create consumer");
 
     Self {

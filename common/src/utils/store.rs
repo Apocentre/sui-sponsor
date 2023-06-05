@@ -1,6 +1,5 @@
 use std::sync::Arc;
 use envconfig::Envconfig;
-use clap::{Parser};
 use sui_sdk::{SuiClientBuilder, SuiClient};
 use crate::{
   services::{sponsor::Sponsor, gas_meter::GasMeter, wallet::Wallet},
@@ -8,15 +7,6 @@ use crate::{
   storage::{redis::ConnectionPool, redlock::RedLock}, helpers::tx::TxManager
 };
 use super::config::{Config};
-
-#[derive(Debug, Parser)]
-struct Args {
-  /// The metadata consumer tag
-  #[arg(short = 'c', long, default_value_t = String::from("coin_object"))]
-  consumer_tag: String,
-}
-
-
 pub struct Store {
   pub config: Config,
   pub rpc_client: Arc<SuiClient>,
@@ -32,7 +22,6 @@ pub struct Store {
 impl Store {
   pub async fn new() -> Self {
     let config = Config::init_from_env().unwrap();
-    let args = Args::parse();
 
     let rpc_client = Arc::new(
       SuiClientBuilder::default()
@@ -55,7 +44,6 @@ impl Store {
       Arc::clone(&rpc_client),
       Arc::clone(&redis_pool),
       &config.rabbitmq.uri,
-      &args.consumer_tag,
     ).await;
     let gas_meter = Arc::new(GasMeter::new(Arc::clone(&rpc_client)));
 
