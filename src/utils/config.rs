@@ -14,6 +14,8 @@ pub struct Config {
   #[envconfig(nested = true)]
   pub redis: RedisConfig,
   #[envconfig(nested = true)]
+  pub rabbitmq: RabbitMQConfig,
+  #[envconfig(nested = true)]
   pub gas_pool: GasPoolConfig,
   #[envconfig(from = "FIREBASE_API_KEY")]
   pub firebase_api_key: String,
@@ -27,6 +29,14 @@ pub struct GasPoolConfig {
   pub min_pool_count: usize,
   #[envconfig(from = "COIN_BALANCE")]
   pub coin_balance: u64,
+}
+
+#[derive(Envconfig)]
+pub struct RabbitMQConfig {
+  #[envconfig(from = "RABBITMQ_URI")]
+  pub uri: String,
+  #[envconfig(from = "RETRY_TTL")]
+  pub retry_ttl: u32,
 }
 
 #[derive(Envconfig)]

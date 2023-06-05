@@ -4,7 +4,7 @@ use envconfig::Envconfig;
 use sui_sdk::{SuiClientBuilder, SuiClient};
 use crate::{
   services::{sponsor::Sponsor, gas_meter::GasMeter, wallet::Wallet, coin_manager::CoinManager},
-  gas_pool::GasPool,
+  gas_pool::{GasPool, coin_object_producer::CoinObjectProducer},
   storage::{redis::ConnectionPool, redlock::RedLock}
 };
 use super::config::{Config};
@@ -16,6 +16,7 @@ pub struct Store {
   pub redis_pool: Arc<ConnectionPool>,
   pub redlock: Arc<RedLock>,
   pub coin_manager: Arc<Mutex<CoinManager>>,
+  pub coin_object_producer: Arc<CoinObjectProducer>,
 }
 
 impl Store {
@@ -50,6 +51,8 @@ impl Store {
       config.gas_pool.coin_balance,
       sponsor_address,
     )));
+
+    let coin_object_producer = CoinObjectProducer::new(config.rab.clone(), config.retry_ttl);
 
     Self {
       config,
