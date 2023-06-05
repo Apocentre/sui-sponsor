@@ -50,9 +50,11 @@ impl GasPool {
     }
   }
 
+  /// Returns the given gas coin back to the pool so it can be used in another transaction.
+  /// We nack the message so it can be put back to the queue. We use a retry consumer so there is already DLX
+  /// and other queue setup that will make sure msg will be put back to the queue after the nack.
   pub async fn return_gas_object(&mut self, coin_object_id: ObjectID) -> Result<()> {
-    // We nack the message so it can be put back to the queue. We use a retry consumer so there is already DLX
-    // and other queue setup that will make sure msg will be put back to the queue after the nack.
+
     let delivery = self.pending_deliveries.remove(&coin_object_id.to_hex_uncompressed()).context("coin id not found")?;
     delivery.nack(BasicNackOptions::default()).await?;
 
