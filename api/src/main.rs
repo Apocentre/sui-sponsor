@@ -30,8 +30,8 @@ async fn main() -> Result<()> {
   env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
   HttpServer::new(move || {
-    let _authn_middleware = Rc::new(AuthnMiddlewareFactory::new(firebase_api_key.to_owned()));
-    let cors_origin = store.config.cors_config.origin.clone();
+    let _authn_middleware = Rc::new(AuthnMiddlewareFactory::new(firebase_api_key.as_ref().unwrap().to_owned()));
+    let cors_origin = store.config.cors_config.as_ref().unwrap().origin.clone();
 
     let cors = Cors::default()
     .allowed_origin_fn(move |origin, _| {
@@ -49,7 +49,7 @@ async fn main() -> Result<()> {
       .service(web::scope("/tx").configure(TxConfig))
       .route("/", web::get().to(|| HttpResponse::Ok()))
   })
-  .bind(format!("0.0.0.0:{}", port))?
+  .bind(format!("0.0.0.0:{}", port.unwrap()))?
   .run()
   .await
 }

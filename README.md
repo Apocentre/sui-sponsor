@@ -32,6 +32,9 @@ MAX_POOL_CAPACITY=
 MIN_POOL_COUNT=
 // The balance of each coin that is created and added to the pool
 COIN_BALANCE=
+RABBITMQ_URI=amqp://user:password@localhost:5672
+// Miliseconds to wait before the nacked message is set back to the RabbitMQ process to be retried
+RETRY_TTL=1000
 ```
 
 ## Coin Manager

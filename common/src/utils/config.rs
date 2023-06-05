@@ -6,9 +6,9 @@ use eyre::Report;
 #[derive(Envconfig)]
 pub struct Config {
   #[envconfig(from = "PORT")]
-  pub port: u64,
+  pub port: Option<u64>,
   #[envconfig(from = "CORS_ORIGIN")]
-  pub cors_config: CorsConfig,
+  pub cors_config: Option<CorsConfig>,
   #[envconfig(nested = true)]
   pub sui: SuiConfig,
   #[envconfig(nested = true)]
@@ -18,17 +18,17 @@ pub struct Config {
   #[envconfig(nested = true)]
   pub gas_pool: GasPoolConfig,
   #[envconfig(from = "FIREBASE_API_KEY")]
-  pub firebase_api_key: String,
+  pub firebase_api_key: Option<String>,
 }
 
 #[derive(Envconfig)]
 pub struct GasPoolConfig {
   #[envconfig(from = "MAX_POOL_CAPACITY")]
-  pub max_capacity: usize,
+  pub max_capacity: Option<usize>,
   #[envconfig(from = "MIN_POOL_COUNT")]
-  pub min_pool_count: usize,
+  pub min_pool_count: Option<usize>,
   #[envconfig(from = "COIN_BALANCE")]
-  pub coin_balance: u64,
+  pub coin_balance: Option<u64>,
 }
 
 #[derive(Envconfig)]
