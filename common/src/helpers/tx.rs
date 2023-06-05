@@ -9,7 +9,7 @@ use sui_sdk::{
 };
 use sui_types::{
   transaction::{Transaction, TransactionData}, quorum_driver_types::ExecuteTransactionRequestType,
-  crypto::Signature,
+  crypto::Signature, base_types::ObjectID,
 };
 
 pub struct TxManager {
@@ -33,6 +33,13 @@ impl TxManager {
     }
 
     false
+  }
+
+  /// Returns the list of all gas payment objects from the GasData section of the given transaction data
+  pub fn extract_gas_objects_ids(tx_data: &TransactionData) -> Vec<ObjectID> {
+    let TransactionData::V1(data) = tx_data;
+
+    data.gas_data.payment.iter().map(|g| g.0).collect()
   }
 
   pub async fn send_tx(

@@ -10687,6 +10687,7 @@ dependencies = [
  "log",
  "serde 1.0.163",
  "serde_json",
+ "sui-sdk",
  "sui-sponsor-common",
  "sui-types",
  "thiserror",
