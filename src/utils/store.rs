@@ -3,7 +3,8 @@ use tokio::sync::Mutex;
 use envconfig::Envconfig;
 use sui_sdk::{SuiClientBuilder, SuiClient};
 use crate::{
-  services::{sponsor::Sponsor, gas_meter::GasMeter, gas_pool::GasPool, wallet::Wallet, coin_manager::CoinManager}, 
+  services::{sponsor::Sponsor, gas_meter::GasMeter, wallet::Wallet, coin_manager::CoinManager},
+  gas_pool::GasPool,
   storage::{redis::ConnectionPool, redlock::RedLock}
 };
 use super::config::{Config};

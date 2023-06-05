@@ -4,8 +4,9 @@ use shared_crypto::intent::Intent;
 use sui_types::{
   transaction::{GasData, TransactionData},
 };
+use crate::gas_pool::GasPool;
 use super::{
-  gas_pool::GasPool, gas_meter::GasMeter, wallet::Wallet,
+  gas_meter::GasMeter, wallet::Wallet,
 };
 
 pub struct Sponsor {
