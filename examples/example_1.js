@@ -15,7 +15,7 @@ const importPrivateKey = (base64Key) => {
   return keypair
 }
 
-const main = async () => {
+const send = async () => {
   // Create a simple transaction block
   const keypair = importPrivateKey(config.secretKey);
   const provider = new JsonRpcProvider(new Connection({fullnode: config.rpcUrl}));
@@ -68,7 +68,17 @@ const main = async () => {
     headers: {'Content-Type': 'application/json'}
   });
 
-  console.log(">>>>>>>>>>>", response_2)
+  console.log("Tx Result", JSON.stringify(await response_2.json(), null, 2))
+}
+
+const sleep = ts => new Promise((resolve) => setTimeout(resolve, ts))
+
+const main = async () => {
+  while(true) {
+    const reqs = Array.from(new Array(81), () => send())
+    await Promise.all(reqs)
+    await sleep(5000)
+  }
 }
 
 main()

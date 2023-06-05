@@ -6,7 +6,9 @@ use sui_types::base_types::{ObjectID, ObjectRef};
 pub async fn get_object(api: Arc<SuiClient>, object_id: ObjectID) -> Result<SuiObjectData> {
   let object = api.read_api().get_object_with_options(
     object_id,
-    SuiObjectDataOptions::new().with_type()
+    SuiObjectDataOptions::new()
+    .with_type()
+    .with_content()
   )
   .await?
   .into_object()?;
