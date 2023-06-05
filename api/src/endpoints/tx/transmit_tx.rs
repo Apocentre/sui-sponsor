@@ -1,7 +1,7 @@
 use actix_web::{web, HttpResponse};
 use serde::{Deserialize, Serialize};
 use eyre::{eyre, Result};
-use sui_types::{transaction::{SignedTransaction, TransactionData}, crypto::{Signature, ToFromBytes, SignableBytes}};
+use sui_types::{transaction::{TransactionData}, crypto::{Signature, ToFromBytes}};
 use tokio::sync::Mutex;
 use crate::utils::error::Error;
 use sui_sponsor_common::{
@@ -27,6 +27,7 @@ pub async fn exec(
 
   let sig = map_err!(Signature::from_bytes(&sig_data))?;
   let tx_data: TransactionData = map_err!(bcs::from_bytes(&tx_block_bytes))?;
+  let sponsor_sig =  store.lock().await.sponsor.sign_tx(tx_data).await?;
 
   Ok(HttpResponse::Ok().json(Response {}))
 }

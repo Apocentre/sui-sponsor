@@ -4,7 +4,7 @@ use std::{
 };
 use eyre::Result;
 use env_logger::Env;
-use sui_sponsor_common::utils::store::Store;
+use sui_sponsor_common::{utils::store::Store};
 use sui_sponsor_coin_manager::coin_manager::CoinManager;
 
 #[tokio::main]
@@ -27,6 +27,7 @@ async fn main() -> Result<()> {
     Arc::clone(&store.rpc_client),
     Arc::clone(&store.wallet),
     Arc::clone(&store.gas_meter),
+    Arc::clone(&store.tx_manager),
     Arc::clone(&store.redis_pool),
     Arc::clone(&store.coin_object_producer),
     store.config.gas_pool.max_capacity.unwrap(),

@@ -5,7 +5,7 @@ use sui_sdk::{SuiClientBuilder, SuiClient};
 use crate::{
   services::{sponsor::Sponsor, gas_meter::GasMeter, wallet::Wallet},
   gas_pool::{GasPool, coin_object_producer::CoinObjectProducer},
-  storage::{redis::ConnectionPool, redlock::RedLock}
+  storage::{redis::ConnectionPool, redlock::RedLock}, helpers::tx::TxManager
 };
 use super::config::{Config};
 
@@ -22,6 +22,7 @@ pub struct Store {
   pub rpc_client: Arc<SuiClient>,
   pub wallet: Arc<Wallet>,
   pub gas_meter: Arc<GasMeter>,
+  pub tx_manager: Arc<TxManager>,
   pub sponsor: Sponsor,
   pub redis_pool: Arc<ConnectionPool>,
   pub redlock: Arc<RedLock>,
@@ -66,11 +67,14 @@ impl Store {
       config.gas_pool.min_coin_balance.unwrap(),
     );
 
+    let tx_manager = Arc::new(TxManager::new(Arc::clone(&rpc_client)));
+
     Self {
       config,
       rpc_client: rpc_client,
       wallet,
       gas_meter,
+      tx_manager,
       sponsor,
       redis_pool,
       redlock,

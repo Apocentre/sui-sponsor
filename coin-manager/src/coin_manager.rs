@@ -3,19 +3,17 @@ use eyre::{Result, ensure, eyre, ContextCompat};
 use shared_crypto::intent::Intent;
 use sui_sdk::{
   SuiClient,
-  rpc_types::{
-    Coin, SuiTransactionBlockResponseOptions, SuiTransactionBlockResponse, SuiTransactionBlockEffects,
-    SuiExecutionStatus,
-  },
+  rpc_types::{Coin},
 };
 use sui_types::{
-  base_types::{SuiAddress, ObjectID}, transaction::{Command, ObjectArg, TransactionData, Transaction},
-  programmable_transaction_builder::ProgrammableTransactionBuilder, quorum_driver_types::ExecuteTransactionRequestType, Identifier, SUI_FRAMEWORK_PACKAGE_ID, coin, TypeTag,
+  base_types::{SuiAddress, ObjectID}, transaction::{Command, ObjectArg, TransactionData},
+  programmable_transaction_builder::ProgrammableTransactionBuilder, Identifier, SUI_FRAMEWORK_PACKAGE_ID, coin, TypeTag,
 };
 use log::info;
 use tokio::time::{sleep, Duration};
 use sui_sponsor_common::{
-  storage::{redis::ConnectionPool}, map_err, helpers::object::get_created_objects,
+  storage::{redis::ConnectionPool}, map_err,
+  helpers::{object::get_created_objects, tx::TxManager},
   gas_pool::coin_object_producer::CoinObjectProducer,
   services::{wallet::Wallet, gas_meter::GasMeter}
 };
@@ -38,6 +36,7 @@ pub struct CoinManager {
   api: Arc<SuiClient>,
   wallet: Arc<Wallet>,
   gas_meter: Arc<GasMeter>,
+  tx_manager: Arc<TxManager>,
   redis_pool: Arc<ConnectionPool>,
   coin_object_producer: Arc<CoinObjectProducer>,
   max_capacity: usize,
@@ -52,6 +51,7 @@ impl CoinManager {
     api: Arc<SuiClient>,
     wallet: Arc<Wallet>,
     gas_meter: Arc<GasMeter>,
+    tx_manager: Arc<TxManager>,
     redis_pool: Arc<ConnectionPool>,
     coin_object_producer: Arc<CoinObjectProducer>,
     max_capacity: usize,
@@ -63,6 +63,7 @@ impl CoinManager {
       api,
       wallet,
       gas_meter,
+      tx_manager,
       redis_pool,
       coin_object_producer,
       max_capacity,
@@ -141,20 +142,6 @@ impl CoinManager {
     Ok(())
   }
 
-  fn has_errors(response: &SuiTransactionBlockResponse) -> bool {
-    if response.errors.len() > 0 {return true}
-
-    if let Some(effects) = response.effects.as_ref() {
-      let SuiTransactionBlockEffects::V1(effects) = effects;
-      
-      if let SuiExecutionStatus::Failure {..} = effects.status {
-        return true
-      } 
-    }
-
-    false
-  }
-
   /// It will first merge all user coins (except for those that are still in the Gas Pool) into the master coin.
   /// Then it split the master coin into MAX_POOL_CAPACITY - CURRENT_POOL_COUNT equal coins; thus rebalancing
   /// Sponsor's coins and keeping Gas Pool liquid.
@@ -227,17 +214,9 @@ impl CoinManager {
     .await?;
 
     let signature = self.wallet.sign(&tx_data, Intent::sui_transaction())?;
-    let response = self.api
-    .quorum_driver_api()
-    .execute_transaction_block(
-      Transaction::from_data(tx_data, Intent::sui_transaction(), vec![signature]).verify()?,
-      SuiTransactionBlockResponseOptions::full_content(),
-      Some(ExecuteTransactionRequestType::WaitForLocalExecution),
-    )
-    .await
-    .expect("successul rebalancing");
+    let response = self.tx_manager.send_tx(tx_data, vec![signature]).await?;
 
-    ensure!(!Self::has_errors(&response), "rebalancing failed");
+    ensure!(!TxManager::has_errors(&response), "rebalancing failed");
 
     let new_objects = get_created_objects(&response);
     info!("Suceccessfully rebalanced. Number of new coins {}", new_objects.len());
