@@ -1,7 +1,8 @@
 
 use std::{
-  io::Result, env, panic, process, sync::Arc,
+  env, panic, process, sync::Arc,
 };
+use eyre::Result;
 use env_logger::Env;
 use sui_sponsor_common::utils::store::Store;
 use sui_sponsor_coin_manager::coin_manager::CoinManager;
@@ -22,7 +23,7 @@ async fn main() -> Result<()> {
   env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
   let sponsor_address = store.wallet.address();
-  let coin_manager = CoinManager::new(
+  let mut coin_manager = CoinManager::new(
     Arc::clone(&store.rpc_client),
     Arc::clone(&store.wallet),
     Arc::clone(&store.gas_meter),
@@ -33,6 +34,8 @@ async fn main() -> Result<()> {
     store.config.gas_pool.coin_balance,
     sponsor_address,
   );
+
+  coin_manager.run().await?;
 
   Ok(())
 }

@@ -34,7 +34,7 @@ impl Redis {
     .map_err(Into::<_>::into)
   }
 
-  pub async fn mset<T: AsRef<str>>(&mut self, keys: Vec<T>, values: Vec<T>) -> Result<()> {
+  pub async fn mset<T: AsRef<str>>(&mut self, keys: &Vec<T>, values: &Vec<T>) -> Result<()> {
     let keys = keys.iter().map(AsRef::as_ref).collect::<Vec<_>>();
     let values = values.iter().map(AsRef::as_ref).collect::<Vec<_>>();
     let args = zip(keys, values).collect::<Vec<_>>();

@@ -123,7 +123,7 @@ impl CoinManager {
 
   /// It will add all newly created coin object ids to Redis, as well as, push
   /// to the distrubuted queue to be consumed by the Gas Pool.
-  pub async fn process_new_coins(&self, new_coins: Vec<ObjectID>) -> Result<()> {
+  async fn process_new_coins(&self, new_coins: Vec<ObjectID>) -> Result<()> {
     let new_coins = new_coins.iter()
     .map(|c| format!("{}{}", GAS_KEY_PREFIX, c.to_hex_uncompressed()))
     .collect::<Vec<_>>();
@@ -131,7 +131,12 @@ impl CoinManager {
     let len = new_coins.len();
     let mut conn = self.redis_pool.connection().await?;
     // the value is irrelevant; we just use number 1 as a convention
-    conn.mset(new_coins, vec!["1".to_string(); len]).await?;
+    conn.mset(&new_coins, &vec!["1".to_string(); len]).await?;
+
+    // Push objects to the pool (i.e. RabbitMQ)
+    for coin in new_coins {
+      self.coin_object_producer.new_coin_object(coin).await?;
+    }
     
     Ok(())
   }
@@ -241,7 +246,7 @@ impl CoinManager {
   }
 
   /// Main execution logic
-  pub async fn execute(&mut self, current_coins: Vec<String>) -> Result<()> {
+  async fn execute(&mut self, current_coins: Vec<String>) -> Result<()> {
     // 1. Load all coins that belong to the sponsor account
     let coins = self.fetch_coins().await?;
     let non_empty_coins = coins.iter().filter(|c| c.balance > 0).count();
@@ -259,7 +264,7 @@ impl CoinManager {
     let gas_pool_coin_count = current_coins.len();
     let new_coins = self.rebalance_coins(input_coins, gas_pool_coin_count).await?;
     
-    // 4. TODO: Store the new coins into the pool; one Redis entry for each object id
+    // 4. Store the new coins into the pool (RabbitMQ) and Redis
     self.process_new_coins(new_coins).await?;
 
     Ok(())
@@ -268,13 +273,14 @@ impl CoinManager {
   /// A loop that periodically checks if the number of Gas coins in the pool is lower than our capacity
   pub async fn run(&mut self) -> Result<()> {
     loop {
+      info!("Checking coin pool status");
       let pool_coins = self.get_pool_coins().await?;
 
-      if pool_coins.len() <= self.min_pool_count {
+      if pool_coins.len() < self.min_pool_count {
         self.execute(pool_coins).await?;
       }
       
-      sleep(Duration::from_secs(100)).await;
+      sleep(Duration::from_secs(10)).await;
     }
   }
 }
