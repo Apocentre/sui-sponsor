@@ -9,8 +9,9 @@ sui keytool generate ed25519 word24
 
 # 2. Move the above file to the keys folder
 
-# 3. Get the base64 value of the private key and use it as `SPONSOR_PRIV_KEY` env variable
-sui keytool  base64-to-hex <content_from_the_key_file_created_above>
+# 3. Get the hex value of the private key and use it as `SPONSOR_PRIV_KEY` env variable
+# You can then import the result into SUI browser wallet, but first remove the first two characters (00)
+sui keytool base64-to-hex <content_from_the_key_file_created_above>
 ```
 
 ## Create a local .env file

@@ -3,13 +3,14 @@ use std::{
   io::Result, rc::Rc, env, panic, process,
 };
 use actix_cors::Cors;
-use actix_web::{middleware, web, http, App, HttpResponse, HttpServer};
+use actix_web::{middleware, web, http, App, HttpServer};
 use env_logger::Env;
 use actix_middleware::firebase_auth::AuthnMiddlewareFactory;
 use sui_sponsor_common::utils::store::Store;
 use sui_sponsor_api::{
   endpoints::tx::config::config as TxConfig,
 };
+use tokio::sync::Mutex;
 
 #[actix_web::main]
 async fn main() -> Result<()> {
@@ -23,15 +24,17 @@ async fn main() -> Result<()> {
     dotenv::from_filename(".env").expect("cannot load env from a file");
   }
 
-  let store = web::Data::new(Store::new().await);
+  let store = Store::new().await;
   let port = store.config.port;
+  let cors_origin = store.config.cors_config.as_ref().unwrap().origin.clone();
   let firebase_api_key = store.config.firebase_api_key.clone();
+  let store = web::Data::new(Mutex::new(store));
 
   env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
   HttpServer::new(move || {
     let _authn_middleware = Rc::new(AuthnMiddlewareFactory::new(firebase_api_key.as_ref().unwrap().to_owned()));
-    let cors_origin = store.config.cors_config.as_ref().unwrap().origin.clone();
+    let cors_origin = cors_origin.clone();
 
     let cors = Cors::default()
     .allowed_origin_fn(move |origin, _| {
@@ -46,8 +49,7 @@ async fn main() -> Result<()> {
       .app_data(store.clone())
       .wrap(cors)
       .wrap(middleware::Logger::default())
-      .service(web::scope("/tx").configure(TxConfig))
-      .route("/", web::get().to(|| HttpResponse::Ok()))
+      .service(web::scope("/gas").configure(TxConfig))
   })
   .bind(format!("0.0.0.0:{}", port.unwrap()))?
   .run()

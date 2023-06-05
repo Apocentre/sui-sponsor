@@ -10,6 +10,8 @@ actix-rt = "2.8"
 actix-web = "4.3"
 actix-cors = "0.6.4"
 actix-middleware = { git = "https://github.com/ticketland-io/actix-middleware", version = "0.1.0" }
+bcs = "0.1"
+base64 = "0.20"
 dotenv = "0.15"
 eyre = "0.6.8"
 env_logger = "0.10"

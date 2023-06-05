@@ -28,7 +28,7 @@ pub struct GasPoolConfig {
   #[envconfig(from = "MIN_POOL_COUNT")]
   pub min_pool_count: Option<usize>,
   #[envconfig(from = "COIN_BALANCE_DEPOSIT")]
-  pub coin_balance: Option<u64>,
+  pub coin_balance_deposit: Option<u64>,
   #[envconfig(from = "MIN_COIN_BALANCE")]
   pub min_coin_balance: Option<u64>,
 }

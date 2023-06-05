@@ -124,6 +124,11 @@ impl CoinManager {
   /// It will add all newly created coin object ids to Redis, as well as, push
   /// to the distrubuted queue to be consumed by the Gas Pool.
   async fn process_new_coins(&self, new_coins: Vec<ObjectID>) -> Result<()> {
+    // Push objects to the pool (i.e. RabbitMQ)
+    for coin in new_coins.iter() {
+      self.coin_object_producer.new_coin_object(coin.to_hex_uncompressed()).await?;
+    }
+
     let new_coins = new_coins.iter()
     .map(|c| format!("{}{}", GAS_KEY_PREFIX, c.to_hex_uncompressed()))
     .collect::<Vec<_>>();
@@ -132,11 +137,6 @@ impl CoinManager {
     let mut conn = self.redis_pool.connection().await?;
     // the value is irrelevant; we just use number 1 as a convention
     conn.mset(&new_coins, &vec!["1".to_string(); len]).await?;
-
-    // Push objects to the pool (i.e. RabbitMQ)
-    for coin in new_coins {
-      self.coin_object_producer.new_coin_object(coin).await?;
-    }
     
     Ok(())
   }

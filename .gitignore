@@ -3,3 +3,5 @@
 .DS_Store
 keys
 .vscode
+node_modules
+.config.json

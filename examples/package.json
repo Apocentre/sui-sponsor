@@ -1,0 +1,14 @@
+{
+  "name": "sui-sponsor-js-examples",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "example_1": "node example_1.js"
+  },
+  "dependencies": {
+    "@mysten/sui.js": "^0.34.1",
+    "node-fetch": "^3.3.1"
+  }
+}

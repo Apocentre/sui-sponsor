@@ -6,9 +6,9 @@ use super::{
 // TODO: protect these endpoing using the authn middleware
 pub fn config(cfg: &mut web::ServiceConfig) {
   cfg.service(
-    web::resource("/gas").route(web::post().to(request_gas::exec))
+    web::resource("/new").route(web::post().to(request_gas::exec))
   );
   cfg.service(
-    web::resource("/tx").route(web::post().to(transmit_tx::exec))
+    web::resource("/submit").route(web::post().to(transmit_tx::exec))
   );
 }

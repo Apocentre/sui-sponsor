@@ -54,25 +54,24 @@ impl Sponsor {
     if Self::is_blacklisted(&data.sender) {return false};
     let TransactionKind::ProgrammableTransaction(ptx) = &data.kind else {return false};
 
-    for cmd in &ptx.commands {
-      match cmd {
-        Command::MoveCall(move_call) => {
-          let ProgrammableMoveCall {package, module, function, ..} = &**move_call;
-          
-          if !Self::is_move_call_supported(&format!("{package}::{module}::{function}")) {
-            return false
-          }
-        },
-        Command::SplitCoins(_, _)
-        | Command::TransferObjects(_, _)
-        | Command::MergeCoins(_, _) => return true,
-        Command::Publish(_, _)
-        | Command::MakeMoveVec(_, _)
-        | Command::Upgrade(_, _, _, _) => return false,
-    }
-    }
+    // Make sure all commands are supported
+    ptx.commands.iter().all(|cmd| match cmd {
+      Command::MoveCall(move_call) => {
+        let ProgrammableMoveCall {package, module, function, ..} = &**move_call;
+        
+        if !Self::is_move_call_supported(&format!("{package}::{module}::{function}")) {
+          return false
+        }
 
-    false
+        true
+      },
+      Command::SplitCoins(_, _)
+      | Command::TransferObjects(_, _)
+      | Command::MergeCoins(_, _) => return true,
+      Command::Publish(_, _)
+      | Command::MakeMoveVec(_, _)
+      | Command::Upgrade(_, _, _, _) => return false,
+    })
   }
 
   async fn create_gas_data(&mut self, tx_data: TransactionData) -> Result<GasData> {

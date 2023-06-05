@@ -31,7 +31,7 @@ async fn main() -> Result<()> {
     Arc::clone(&store.coin_object_producer),
     store.config.gas_pool.max_capacity.unwrap(),
     store.config.gas_pool.min_pool_count.unwrap(),
-    store.config.gas_pool.coin_balance.unwrap(),
+    store.config.gas_pool.coin_balance_deposit.unwrap(),
     sponsor_address,
   );
 
