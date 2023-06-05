@@ -19,31 +19,56 @@ const main = async () => {
   const keypair = importPrivateKey(config.secretKey);
   const provider = new JsonRpcProvider();
   const signer = new RawSigner(keypair, provider);
-  const tx = new TransactionBlock();
-  const [coin] = tx.splitCoins(tx.gas, [tx.pure(1000)]);
-  tx.transferObjects([coin], tx.pure(keypair.getPublicKey().toSuiAddress()));
-  tx.setSender(await signer.getAddress())
+  const txb = new TransactionBlock();
+  const [coin] = txb.splitCoins(txb.gas, [txb.pure(1000)]);
+  txb.transferObjects([coin], txb.pure(keypair.getPublicKey().toSuiAddress()));
+  txb.setSender(await signer.getAddress())
 
   // Request GasData
 
-  const tx_data_bytes = await tx.build({provider, onlyTransactionKind: false});
+  const tx_data_bytes = await txb.build({provider, onlyTransactionKind: false});
   // convert the byte array to a base64 encoded string
   const tx_data = btoa(
     tx_data_bytes.reduce((data, byte) => data + String.fromCharCode(byte), '')
   );
 
-  const response = await fetch('http://127.0.0.1:4000/gas/new', {
+  const response = await fetch('http://127.0.0.1:4000/tx/gas', {
     method: 'post',
     body: JSON.stringify({tx_data}),
     headers: {'Content-Type': 'application/json'}
   });
   
-  const data = await response.json();
-  console.log(">>>>>>>>", data)
+  const {
+    gas_data: {
+      payment,
+      owner,
+      price,
+      budget
+    },
+    sig,
+  } = await response.json();
 
   // Sign the final transaction including the GasData
+  txb.setGasBudget(budget)
+  txb.setGasPayment(payment.map(p => ({
+    objectId: p[0],
+    version: p[1],
+    digest: p[2],
+  })))
+  txb.setGasOwner(owner)
+  txb.setGasPrice(price)
 
-  // Requet the sponsor to transmit the transaction
+  let transactionBlock = await txb.build({provider, onlyTransactionKind: false});
+  const signed_tx = await signer.signTransactionBlock({transactionBlock})
+
+  // Request the sponsor to transmit the transaction
+  const response_2 = await fetch('http://127.0.0.1:4000/tx/submit', {
+    method: 'post',
+    body: JSON.stringify({...signed_tx}),
+    headers: {'Content-Type': 'application/json'}
+  });
+
+  console.log(">>>>>>>>>>>", response_2)
 }
 
 main()

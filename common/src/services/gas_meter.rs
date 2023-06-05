@@ -41,9 +41,9 @@ impl GasMeter {
   pub fn total_gas_used_upper_bound(tx_block_effects: SuiTransactionBlockEffects) -> Result<u64> {
     let gas_summary = Self::gas_summary(tx_block_effects);
     // Note for the upper bound we don't subtract`storage_rebate`. This is similar to how the TS SDK computes this value
-    let gas_upper_boud = gas_summary.computation_cost + gas_summary.storage_cost;
+    let gas_upper_bound = gas_summary.computation_cost + gas_summary.storage_cost;
     
-    Ok(gas_upper_boud)
+    Ok(gas_upper_bound)
   }
 
   fn gas_summary(tx_block_effects: SuiTransactionBlockEffects) -> GasCostSummary {

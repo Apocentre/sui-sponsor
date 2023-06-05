@@ -48,6 +48,11 @@ impl Sponsor {
     true
   }
 
+  /// TODO: makes sure that client does no abuse by trying to execute expensive transactions blocks
+  fn is_gas_budget_within_limits(gas_data: &GasData) -> bool {
+    true
+  }
+
   /// Examined the given transaction data and determines if sponsor supports it.
   fn is_tx_supported(tx_data: &TransactionData) -> bool {
     let TransactionData::V1(data) = tx_data;
@@ -104,8 +109,8 @@ impl Sponsor {
 
   pub async fn request_gas(&mut self, tx_data: TransactionData) -> Result<(GasData, Signature)> {
     ensure!(Self::is_tx_supported(&tx_data), "transaction is not supported");
-    
     let gas_data = self.create_gas_data(tx_data).await?;
+    ensure!(Self::is_gas_budget_within_limits(&gas_data), "exceeded gas budget");
     let sig = self.wallet.sign(&gas_data, Intent::sui_transaction())?;
     
     Ok((gas_data, sig))

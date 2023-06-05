@@ -49,7 +49,7 @@ async fn main() -> Result<()> {
       .app_data(store.clone())
       .wrap(cors)
       .wrap(middleware::Logger::default())
-      .service(web::scope("/gas").configure(TxConfig))
+      .service(web::scope("/tx").configure(TxConfig))
   })
   .bind(format!("0.0.0.0:{}", port.unwrap()))?
   .run()

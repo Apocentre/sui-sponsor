@@ -27,5 +27,6 @@ pub async fn exec(
   let tx_data = map_err!(base64::decode(&body.tx_data))?;
   let tx_data: TransactionData = map_err!(bcs::from_bytes(&tx_data))?;
   let (gas_data, sig) = store.lock().await.sponsor.request_gas(tx_data).await?;
+  
   Ok(HttpResponse::Ok().json(Response {gas_data, sig}))
 }
