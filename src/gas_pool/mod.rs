@@ -1,3 +1,5 @@
+pub mod coin_object_producer;
+
 use std::sync::Arc;
 use eyre::Result;
 use sui_sdk::SuiClient;
