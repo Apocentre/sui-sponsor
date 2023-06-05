@@ -5,7 +5,7 @@ use amqp_helpers::producer::retry_producer::RetryProducer;
 #[derive(BorshSerialize, BorshDeserialize)]
 pub struct NewCoinObject {
   // The hex value of the coin object id
-  id: String,
+  pub id: String,
 }
 
 pub struct CoinObjectProducer(RetryProducer);

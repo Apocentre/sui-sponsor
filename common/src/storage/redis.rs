@@ -27,7 +27,7 @@ impl Redis {
     Redis(connection)
   }
 
-  pub async fn sett<T: AsRef<str>>(&mut self, key: T, value: T) -> Result<()> {
+  pub async fn set<T: AsRef<str>>(&mut self, key: T, value: T) -> Result<()> {
     cmd("SET")
     .arg(&[key.as_ref(), value.as_ref()])
     .query_async(&mut self.0).await
@@ -52,7 +52,7 @@ impl Redis {
     .map_err(Into::<_>::into)
   }
 
-  pub async fn gett<T: AsRef<str>>(&mut self, key: T) -> Result<String> {
+  pub async fn get<T: AsRef<str>>(&mut self, key: T) -> Result<String> {
     cmd("GET")
     .arg(&[key.as_ref()])
     .query_async(&mut self.0).await
@@ -68,7 +68,7 @@ impl Redis {
     .map_err(Into::<_>::into)
   }
 
-  pub async fn deletet<T: AsRef<str>>(&mut self, key: T) -> Result<()> {
+  pub async fn delete<T: AsRef<str>>(&mut self, key: T) -> Result<()> {
     cmd("DEL")
     .arg(key.as_ref())
     .query_async(&mut self.0).await

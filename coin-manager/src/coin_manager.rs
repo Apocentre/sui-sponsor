@@ -43,7 +43,7 @@ pub struct CoinManager {
   max_capacity: usize,
   min_pool_count: usize,
   // The minimum balance each coin that is created and added to the Gas Pool should have
-  coin_balance: u64,
+  coin_balance_deposit: u64,
   sponsor: SuiAddress,
 }
 
@@ -56,7 +56,7 @@ impl CoinManager {
     coin_object_producer: Arc<CoinObjectProducer>,
     max_capacity: usize,
     min_pool_count: usize,
-    coin_balance: u64,
+    coin_balance_deposit: u64,
     sponsor: SuiAddress,
   ) -> Self {
     Self {
@@ -67,7 +67,7 @@ impl CoinManager {
       coin_object_producer,
       max_capacity,
       min_pool_count,
-      coin_balance,
+      coin_balance_deposit,
       sponsor
     }
   }
@@ -190,9 +190,9 @@ impl CoinManager {
       ptb.command(merge_coin_cmd);
     }
 
-    // 2. Split the master coin into MAX_POOL_CAPACITY - CURRENT_POOL_COUNT each having `coin_balance`
+    // 2. Split the master coin into MAX_POOL_CAPACITY - CURRENT_POOL_COUNT each having `coin_balance_deposit`
     let new_coin_count = self.max_capacity - gas_pool_coin_count;
-    let amounts = vec![self.coin_balance; new_coin_count]
+    let amounts = vec![self.coin_balance_deposit; new_coin_count]
     .into_iter()
     .map(|a| ptb.pure(a).expect("pure arg"))
     .collect::<Vec<_>>();

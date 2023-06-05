@@ -31,7 +31,9 @@ MAX_POOL_CAPACITY=
 // Minimum number of coins that must always exist in the pool
 MIN_POOL_COUNT=
 // The balance of each coin that is created and added to the pool
-COIN_BALANCE=
+COIN_BALANCE_DEPOSIT=
+// Min balance a gas coin should have to be in the pool; otherwise it's removed
+MIN_COIN_BALANCE=
 RABBITMQ_URI=amqp://user:password@localhost:5672
 // Miliseconds to wait before the nacked message is set back to the RabbitMQ process to be retried
 RETRY_TTL=1000

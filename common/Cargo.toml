@@ -7,7 +7,8 @@ edition = "2021"
 
 [dependencies]
 borsh = "0.11"
-amqp-helpers = { git = "https://github.com/ticketland-io/amqp-helpers", version = "0.4.4", rev = "481ad18" }
+amqp-helpers = { git = "https://github.com/ticketland-io/amqp-helpers", version = "1.0.1", rev = "a953d80" }
+clap = { version = "4.2", features = ["derive"] }
 redis = { version = "0.23.0", features = ["tokio-comp"] }
 deadpool-redis = { version = "0.12", features = ["rt_tokio_1"] }
 rslock = "0.1"
