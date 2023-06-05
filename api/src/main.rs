@@ -1,13 +1,13 @@
 
 use std::{
-  io::Result, rc::Rc, env, panic, process, sync::Arc,
+  io::Result, rc::Rc, env, panic, process,
 };
 use actix_cors::Cors;
 use actix_web::{middleware, web, http, App, HttpResponse, HttpServer};
 use env_logger::Env;
 use actix_middleware::firebase_auth::AuthnMiddlewareFactory;
-use sui_sponsor::{
-  utils::store::Store,
+use sui_sponsor_common::utils::store::Store;
+use sui_sponsor_api::{
   endpoints::tx::config::config as TxConfig,
 };
 
@@ -32,13 +32,6 @@ async fn main() -> Result<()> {
   HttpServer::new(move || {
     let _authn_middleware = Rc::new(AuthnMiddlewareFactory::new(firebase_api_key.to_owned()));
     let cors_origin = store.config.cors_config.origin.clone();
-
-    // Spawn the coin manager
-    let coin_manager = Arc::clone(&store.coin_manager);
-    tokio::spawn(async move {
-      let mut coin_manager = coin_manager.lock().await;
-      coin_manager.run().await.expect("coin manager not to fail");
-    });
 
     let cors = Cors::default()
     .allowed_origin_fn(move |origin, _| {

@@ -10665,19 +10665,47 @@ dependencies = [
 ]
 
 [[package]]
-name = "sui-sponsor"
+name = "sui-sponsor-api"
 version = "0.1.0"
 dependencies = [
  "actix-cors",
  "actix-middleware",
  "actix-rt",
  "actix-web",
- "amqp-helpers",
- "bincode",
- "borsh 0.11.0",
- "deadpool-redis",
  "dotenv",
  "env_logger 0.10.0",
+ "envconfig",
+ "eyre",
+ "log",
+ "serde 1.0.163",
+ "serde_json",
+ "sui-sponsor-common",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "sui-sponsor-coin-manager"
+version = "0.1.0"
+dependencies = [
+ "dotenv",
+ "env_logger 0.10.0",
+ "eyre",
+ "log",
+ "shared-crypto",
+ "sui-sdk",
+ "sui-sponsor-common",
+ "sui-types",
+ "tokio",
+]
+
+[[package]]
+name = "sui-sponsor-common"
+version = "0.1.0"
+dependencies = [
+ "amqp-helpers",
+ "borsh 0.11.0",
+ "deadpool-redis",
  "envconfig",
  "eyre",
  "log",
@@ -10686,7 +10714,6 @@ dependencies = [
  "serde 1.0.163",
  "serde_json",
  "shared-crypto",
- "sui-keys",
  "sui-sdk",
  "sui-types",
  "thiserror",

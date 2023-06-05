@@ -1,0 +1,17 @@
+[package]
+name = "sui-sponsor-coin-manager"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+dotenv = "0.15"
+eyre = "0.6.8"
+env_logger = "0.10"
+log = "0.4"
+sui-sponsor-common = { path = "../common" }
+sui-sdk = { git = "https://github.com/MystenLabs/sui", rev = "9588990" }
+sui-types = { git = "https://github.com/MystenLabs/sui", rev = "9588990" }
+shared-crypto = { git = "https://github.com/MystenLabs/sui", rev = "9588990" }
+tokio = { version = "1.27", features = ["macros", "rt-multi-thread"] }

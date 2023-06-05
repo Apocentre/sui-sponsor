@@ -1,8 +1,9 @@
 use actix_web::{web, HttpResponse};
 use serde::{Deserialize, Serialize};
 use eyre::Result;
-use crate::utils::{
-  store::Store, error::Error,
+use crate::utils::error::Error;
+use sui_sponsor_common::{
+  utils::store::Store
 };
 
 #[derive(Deserialize)]

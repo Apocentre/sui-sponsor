@@ -14,11 +14,11 @@ use sui_types::{
 };
 use log::info;
 use tokio::time::{sleep, Duration};
-use crate::{
+use sui_sponsor_common::{
   storage::{redis::ConnectionPool}, map_err, helpers::object::get_created_objects,
   gas_pool::coin_object_producer::CoinObjectProducer,
+  services::{wallet::Wallet, gas_meter::GasMeter}
 };
-use super::{wallet::Wallet, gas_meter::GasMeter};
 
 const GAS_KEY_PREFIX: &str = "gas:";
 // This is roughly how much we need to split into 100 coins for the first time.
