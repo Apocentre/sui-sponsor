@@ -215,7 +215,6 @@ impl CoinManager {
 
     let signature = self.wallet.sign(&tx_data, Intent::sui_transaction())?;
     let response = self.tx_manager.send_tx(tx_data, vec![signature]).await?;
-
     ensure!(!TxManager::has_errors(&response), "rebalancing failed");
 
     let new_objects = get_created_objects(&response);

@@ -1,5 +1,6 @@
 import fetch from 'node-fetch';
 import {
+  Connection,
   Ed25519Keypair,
   JsonRpcProvider,
   RawSigner,
@@ -17,7 +18,7 @@ const importPrivateKey = (base64Key) => {
 const main = async () => {
   // Create a simple transaction block
   const keypair = importPrivateKey(config.secretKey);
-  const provider = new JsonRpcProvider();
+  const provider = new JsonRpcProvider(new Connection({fullnode: config.rpcUrl}));
   const signer = new RawSigner(keypair, provider);
   const txb = new TransactionBlock();
   const [coin] = txb.splitCoins(txb.gas, [txb.pure(1000)]);
@@ -45,7 +46,6 @@ const main = async () => {
       price,
       budget
     },
-    sig,
   } = await response.json();
 
   // Sign the final transaction including the GasData
