@@ -10716,8 +10716,6 @@ dependencies = [
  "shared-crypto",
  "sui-sdk",
  "sui-types",
- "thiserror",
- "tokio",
 ]
 
 [[package]]
