@@ -10,7 +10,7 @@ use amqp_helpers::{
   BasicNackOptions, BasicAckOptions,
 };
 use crate::{helpers::object::get_object_ref, storage::redis::ConnectionPool};
-use self::coin_object_producer::{CoinObjectProducer, NewCoinObject};
+use self::coin_object_producer::{NewCoinObject};
 
 const GAS_KEY_PREFIX: &str = "gas:";
 
@@ -18,7 +18,6 @@ pub struct GasPool {
   api: Arc<SuiClient>,
   redis_pool: Arc<ConnectionPool>,
   coin_object_consumer: RetryConsumer,
-  coin_object_producer: Arc<CoinObjectProducer>,
   // We need to delivery object to ack/nack messages we receive from RabbitMQ. The process of requesting and confirming
   // gas object is asynchronous. Client first request the GasData object which we get from the queue. Client then will sign
   // a new transaction data including this signed GasData and send it back to us so we can transmit it to the network. It
@@ -34,7 +33,6 @@ impl GasPool {
     redis_pool: Arc<ConnectionPool>,
     rabbitmq_uri: &str,
     consumer_tag: &str,
-    coin_object_producer: Arc<CoinObjectProducer>
   ) -> Self {
 
     let coin_object_consumer = RetryConsumer::new(
@@ -48,7 +46,6 @@ impl GasPool {
       api,
       redis_pool,
       coin_object_consumer,
-      coin_object_producer,
       pending_deliveries: HashMap::new(),
     }
   }

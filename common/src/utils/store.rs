@@ -55,7 +55,6 @@ impl Store {
       Arc::clone(&redis_pool),
       &config.rabbitmq.uri,
       &args.consumer_tag,
-      Arc::clone(&coin_object_producer)
     ).await;
     let gas_meter = Arc::new(GasMeter::new(Arc::clone(&rpc_client)));
 

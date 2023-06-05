@@ -1,11 +1,11 @@
 use std::sync::Arc;
-use eyre::{Result};
+use eyre::{eyre, Result};
 use shared_crypto::intent::Intent;
 use sui_sdk::{SuiClient};
 use sui_types::{
-  transaction::{GasData, TransactionData}, base_types::ObjectID, coin::Coin, gas_coin::GasCoin,
+  transaction::{GasData, TransactionData}, base_types::ObjectID, gas_coin::GasCoin,
 };
-use crate::{gas_pool::GasPool, storage::redis::ConnectionPool, helpers::object::get_object, map_err};
+use crate::{gas_pool::GasPool, helpers::object::get_object, map_err};
 use super::{
   gas_meter::GasMeter, wallet::Wallet,
 };
@@ -51,15 +51,17 @@ impl Sponsor {
 
   pub async fn gas_object_processed(&mut self, coin_object_id: ObjectID) -> Result<()> {
     let coin = &get_object(Arc::clone(&self.api), coin_object_id).await?;
-    let coin_balance: GasCoin = map_err!(coin.try_into())?;
+    let coin_balance = map_err!(TryInto::<GasCoin>::try_into(coin))?;
 
     // check if the coin_object_id has enough balance. If not then remove it from the queue i.e. ack
     // as well as, from Redis.
-    if coin_balance.balance <= self.min_coin_balance {
+    if coin_balance.value() <= self.min_coin_balance {
       self.gas_pool.remove_gas_object(coin_object_id).await?;
+    } else {
+      self.gas_pool.return_gas_object(coin_object_id).await?;
     }
 
-    todo!()
+    Ok(())
   }
 
   pub async fn request_gas(&mut self, tx_data: TransactionData) -> Result<String> {
