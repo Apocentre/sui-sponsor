@@ -9,3 +9,9 @@ pub enum Error {
 }
 
 impl ResponseError for Error {}
+
+impl From<eyre::ErrReport> for Error {
+  fn from(error: eyre::ErrReport) -> Self {
+    Error::GenericError(format!("{:?}", error))
+  }
+}

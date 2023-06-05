@@ -10680,6 +10680,7 @@ dependencies = [
  "serde 1.0.163",
  "serde_json",
  "sui-sponsor-common",
+ "sui-types",
  "thiserror",
  "tokio",
 ]

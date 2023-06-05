@@ -4,7 +4,7 @@ use shared_crypto::intent::Intent;
 use sui_sdk::{SuiClient};
 use sui_types::{
   transaction::{GasData, TransactionData, TransactionKind, Command, ProgrammableMoveCall},
-  base_types::{ObjectID, SuiAddress}, gas_coin::GasCoin,
+  base_types::{ObjectID, SuiAddress}, gas_coin::GasCoin, crypto::Signature,
 };
 use crate::{gas_pool::GasPool, helpers::object::get_object, map_err};
 use super::{
@@ -103,13 +103,12 @@ impl Sponsor {
     Ok(())
   }
 
-  pub async fn request_gas(&mut self, tx_data: TransactionData) -> Result<String> {
+  pub async fn request_gas(&mut self, tx_data: TransactionData) -> Result<(GasData, Signature)> {
     ensure!(Self::is_tx_supported(&tx_data), "transaction is not supported");
     
     let gas_data = self.create_gas_data(tx_data).await?;
     let sig = self.wallet.sign(&gas_data, Intent::sui_transaction())?;
-    let sig_str = serde_json::to_string(&sig)?;
     
-    Ok(sig_str)
+    Ok((gas_data, sig))
   }
 }
