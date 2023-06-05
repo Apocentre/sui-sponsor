@@ -52,7 +52,12 @@ impl Store {
       sponsor_address,
     )));
 
-    let coin_object_producer = CoinObjectProducer::new(config.rab.clone(), config.retry_ttl);
+    let coin_object_producer = Arc::new(
+      CoinObjectProducer::try_new(
+        config.rabbitmq.uri.clone(),
+        config.rabbitmq.retry_ttl
+      ).await.expect("create coin object producer")
+    );
 
     Self {
       config,
@@ -61,6 +66,7 @@ impl Store {
       redis_pool,
       redlock,
       coin_manager,
+      coin_object_producer,
     }
   }
 }

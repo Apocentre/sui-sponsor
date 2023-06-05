@@ -11,7 +11,7 @@ pub struct NewCoinObject {
 pub struct CoinObjectProducer(RetryProducer);
 
 impl CoinObjectProducer {
-  pub async fn new(rabbitmq_uri: String, retry_ttl: u32) -> Self {
+  pub async fn try_new(rabbitmq_uri: String, retry_ttl: u32) -> Result<Self> {
     let producer = RetryProducer::new(
       &rabbitmq_uri,
       &"coin_object",
@@ -23,7 +23,7 @@ impl CoinObjectProducer {
     .await
     .unwrap();
 
-    Self(producer)
+    Ok(Self(producer))
   }
 
   pub async fn new_coin_object(&self, id: String) -> Result<()> {
