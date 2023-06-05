@@ -78,7 +78,6 @@ impl GasPool {
     ensure!(!self.pending_deliveries.contains_key(&new_coin_object.id), "Possible equivocation");
 
     let coin_object_id = ObjectID::from_hex_literal(&new_coin_object.id)?;
-
     // Store the msg delivery so we can later nack the message i.e. put it back to the queue.
     self.pending_deliveries.insert(new_coin_object.id, delivery);
 
