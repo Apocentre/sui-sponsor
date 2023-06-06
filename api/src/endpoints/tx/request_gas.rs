@@ -1,4 +1,3 @@
-use std::time::Instant;
 use actix_web::{web, HttpResponse};
 use serde::{Deserialize, Serialize};
 use eyre::{eyre, Result};
@@ -25,12 +24,7 @@ pub async fn exec(
 ) -> Result<HttpResponse, Error> {
   let tx_data = map_err!(base64::decode(&body.tx_data))?;
   let tx_data: TransactionData = map_err!(bcs::from_bytes(&tx_data))?;
-  
-  let start = Instant::now();
-  log::info!("Before locking....");
   let gas_data = store.sponsor.request_gas(tx_data).await?;
-  let duration = start.elapsed();
-  log::info!("Exec time {:?}", duration);
   
   Ok(HttpResponse::Ok().json(Response {gas_data}))
 }

@@ -54,8 +54,7 @@ impl TxManager {
       SuiTransactionBlockResponseOptions::full_content(),
       Some(ExecuteTransactionRequestType::WaitForLocalExecution),
     )
-    .await
-    .expect("successul rebalancing");
+    .await?;
 
     Ok(response)
   }

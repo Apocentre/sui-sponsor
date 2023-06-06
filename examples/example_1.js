@@ -68,7 +68,7 @@ const send = async () => {
     headers: {'Content-Type': 'application/json'}
   });
 
-  console.log("Tx Result", JSON.stringify(await response_2.json(), null, 2))
+  // console.log("Tx Result", JSON.stringify(await response_2.json(), null, 2))
 }
 
 const sleep = ts => new Promise((resolve) => setTimeout(resolve, ts))
