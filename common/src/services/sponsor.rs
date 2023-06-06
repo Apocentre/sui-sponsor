@@ -122,7 +122,7 @@ impl Sponsor {
   /// Returns a signature on the entire transaction. This is after the client has requested a gas object
   /// and has signed the given tx_data. After this call, sponsor can transmit the transaction.
   /// Performs the same transaction data checks as in `request_gas`.
-  pub async fn sign_tx(&mut self, tx_data: &TransactionData) -> Result<Signature> {
+  pub async fn sign_tx(&self, tx_data: &TransactionData) -> Result<Signature> {
     ensure!(Self::is_tx_supported(&tx_data), "transaction is not supported");
     let TransactionData::V1(tx) = &tx_data;
     ensure!(Self::is_gas_budget_within_limits(&tx.gas_data), "exceeded gas budget");
