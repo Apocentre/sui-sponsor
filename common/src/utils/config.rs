@@ -17,8 +17,16 @@ pub struct Config {
   pub rabbitmq: RabbitMQConfig,
   #[envconfig(nested = true)]
   pub gas_pool: GasPoolConfig,
+  #[envconfig(nested = true)]
+  pub sponsor: SponsorConfig,
   #[envconfig(from = "FIREBASE_API_KEY")]
   pub firebase_api_key: Option<String>,
+}
+
+#[derive(Envconfig)]
+pub struct SponsorConfig {
+  #[envconfig(from = "MAX_GAS_BUDGET")]
+  pub max_gas_budget: Option<u64>,
 }
 
 #[derive(Envconfig)]

@@ -17,6 +17,7 @@ pub struct Sponsor {
   gas_meter: Arc<GasMeter>,
   gas_pool: GasPool,
   min_coin_balance: u64,
+  max_gas_budget: u64,
 }
 
 impl Sponsor {
@@ -26,6 +27,7 @@ impl Sponsor {
     gas_meter: Arc<GasMeter>,
     gas_pool: GasPool,
     min_coin_balance: u64,
+    max_gas_budget: u64,
   ) -> Self {
     Self {
       api,
@@ -33,6 +35,7 @@ impl Sponsor {
       gas_pool,
       gas_meter,
       min_coin_balance,
+      max_gas_budget,
     }
   }
 
@@ -79,14 +82,14 @@ impl Sponsor {
     })
   }
 
-  async fn create_gas_data(&mut self, tx_data: TransactionData) -> Result<GasData> {
+  async fn create_gas_data(&mut self) -> Result<GasData> {
     let pubkey = &self.wallet.public();
 
     let gas_data = GasData {
       payment: vec![self.gas_pool.gas_object().await?],
       owner: pubkey.into(),
       price: self.gas_meter.gas_price().await?,
-      budget: self.gas_meter.gas_budget(tx_data).await?,
+      budget: self.max_gas_budget,
     };
   
     Ok(gas_data) 
@@ -110,7 +113,7 @@ impl Sponsor {
   /// Returns a gas objects for the given transaction data
   pub async fn request_gas(&mut self, tx_data: TransactionData) -> Result<GasData> {
     ensure!(Self::is_tx_supported(&tx_data), "transaction is not supported");
-    let gas_data = self.create_gas_data(tx_data).await?;
+    let gas_data = self.create_gas_data().await?;
     ensure!(Self::is_gas_budget_within_limits(&gas_data), "exceeded gas budget");
     
     Ok(gas_data)

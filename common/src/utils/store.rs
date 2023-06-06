@@ -53,6 +53,7 @@ impl Store {
       Arc::clone(&gas_meter),
       gas_pool,
       config.gas_pool.min_coin_balance.unwrap(),
+      config.sponsor.max_gas_budget.unwrap(),
     );
 
     let tx_manager = Arc::new(TxManager::new(Arc::clone(&rpc_client)));
