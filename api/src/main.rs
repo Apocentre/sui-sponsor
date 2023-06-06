@@ -10,7 +10,6 @@ use sui_sponsor_common::utils::store::Store;
 use sui_sponsor_api::{
   endpoints::tx::config::config as TxConfig,
 };
-use tokio::sync::Mutex;
 
 #[actix_web::main]
 async fn main() -> Result<()> {
@@ -28,7 +27,7 @@ async fn main() -> Result<()> {
   let port = store.config.port;
   let cors_origin = store.config.cors_config.as_ref().unwrap().origin.clone();
   let firebase_api_key = store.config.firebase_api_key.clone();
-  let store = web::Data::new(Mutex::new(store));
+  let store = web::Data::new(store);
 
   env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 

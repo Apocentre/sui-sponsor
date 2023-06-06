@@ -75,7 +75,7 @@ const sleep = ts => new Promise((resolve) => setTimeout(resolve, ts))
 
 const main = async () => {
   while(true) {
-    const reqs = Array.from(new Array(81), () => send())
+    const reqs = Array.from(new Array(50), () => send())
     await Promise.all(reqs)
     await sleep(5000)
   }

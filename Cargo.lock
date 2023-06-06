@@ -377,8 +377,8 @@ dependencies = [
 
 [[package]]
 name = "amqp-helpers"
-version = "1.1.1"
-source = "git+https://github.com/ticketland-io/amqp-helpers?rev=848e8f8#848e8f890172f72ac1c20e52a599bc71c6991a0e"
+version = "1.1.2"
+source = "git+https://github.com/ticketland-io/amqp-helpers?rev=7568b7b#7568b7b64e7d49546af901fb317c009ec417becf"
 dependencies = [
  "async-trait",
  "borsh 0.9.3",
@@ -10715,6 +10715,7 @@ version = "0.1.0"
 dependencies = [
  "amqp-helpers",
  "borsh 0.11.0",
+ "dashmap",
  "deadpool-redis",
  "envconfig",
  "eyre",

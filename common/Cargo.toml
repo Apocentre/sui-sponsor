@@ -7,12 +7,13 @@ edition = "2021"
 
 [dependencies]
 borsh = "0.11"
-amqp-helpers = { git = "https://github.com/ticketland-io/amqp-helpers", version = "1.1.1", rev = "848e8f8" }
-redis = { version = "0.23.0", features = ["tokio-comp"] }
+amqp-helpers = { git = "https://github.com/ticketland-io/amqp-helpers", version = "1.1.2", rev = "7568b7b" }
 deadpool-redis = { version = "0.12", features = ["rt_tokio_1"] }
-rslock = "0.1"
+dashmap = "5.4"
 eyre = "0.6.8"
 envconfig = "0.10"
+rslock = "0.1"
+redis = { version = "0.23.0", features = ["tokio-comp"] }
 log = "0.4"
 sui-sdk = { git = "https://github.com/MystenLabs/sui", rev = "9588990" }
 sui-types = { git = "https://github.com/MystenLabs/sui", rev = "9588990" }

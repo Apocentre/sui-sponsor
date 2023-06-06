@@ -82,7 +82,7 @@ impl Sponsor {
     })
   }
 
-  async fn create_gas_data(&mut self) -> Result<GasData> {
+  async fn create_gas_data(&self) -> Result<GasData> {
     let pubkey = &self.wallet.public();
 
     let gas_data = GasData {
@@ -95,7 +95,7 @@ impl Sponsor {
     Ok(gas_data) 
   }
 
-  pub async fn gas_object_processed(&mut self, coin_object_id: ObjectID) -> Result<()> {
+  pub async fn gas_object_processed(&self, coin_object_id: ObjectID) -> Result<()> {
     let coin = &get_object(Arc::clone(&self.api), coin_object_id).await?;
     let coin_balance = map_err!(TryInto::<GasCoin>::try_into(coin))?;
 
@@ -111,7 +111,7 @@ impl Sponsor {
   }
 
   /// Returns a gas objects for the given transaction data
-  pub async fn request_gas(&mut self, tx_data: TransactionData) -> Result<GasData> {
+  pub async fn request_gas(&self, tx_data: TransactionData) -> Result<GasData> {
     ensure!(Self::is_tx_supported(&tx_data), "transaction is not supported");
     let gas_data = self.create_gas_data().await?;
     ensure!(Self::is_gas_budget_within_limits(&gas_data), "exceeded gas budget");

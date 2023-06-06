@@ -1,6 +1,7 @@
 pub mod coin_object_producer;
 
-use std::{sync::Arc, collections::HashMap};
+use std::{sync::Arc};
+use dashmap::DashMap;
 use borsh::BorshDeserialize;
 use eyre::{Result, ContextCompat, ensure};
 use sui_sdk::SuiClient;
@@ -24,7 +25,7 @@ pub struct GasPool {
   // is at this point that we need to put the message back to the queue. However, this whole process requires two HTTP
   // rountrips that happen in an asynchronous way. So we need to store the Delivery instance in memory so we can then
   // identify which message it refers to and act accordingly i.e. put the coin object id back to the queue.
-  pending_deliveries: HashMap<String, Delivery>,
+  pending_deliveries: DashMap<String, Delivery>,
 }
 
 impl GasPool {
@@ -43,15 +44,15 @@ impl GasPool {
       api,
       redis_pool,
       coin_object_consumer,
-      pending_deliveries: HashMap::new(),
+      pending_deliveries: DashMap::new(),
     }
   }
 
   /// Returns the given gas coin back to the pool so it can be used in another transaction.
   /// We nack the message so it can be put back to the queue. We use a retry consumer so there is already DLX
   /// and other queue setup that will make sure msg will be put back to the queue after the nack.
-  pub async fn return_gas_object(&mut self, coin_object_id: ObjectID) -> Result<()> {
-    let delivery = self.pending_deliveries.remove(&coin_object_id.to_hex_uncompressed()).context("coin id not found")?;
+  pub async fn return_gas_object(&self, coin_object_id: ObjectID) -> Result<()> {
+    let (_, delivery) = self.pending_deliveries.remove(&coin_object_id.to_hex_uncompressed()).context("coin id not found")?;
     delivery.nack(BasicNackOptions::default()).await?;
 
     Ok(())
@@ -60,7 +61,7 @@ impl GasPool {
   /// Core gas pool logic. It will make sure that a safe Gas Coin Object will be used. This means
   /// that we will not risk equiovocation of the Gas objects because a locking mechanism will make sure
   /// that the same Gas Coin will not be used in more than one parallel transactions
-  pub async fn gas_object(&mut self) -> Result<ObjectRef> {
+  pub async fn gas_object(&self) -> Result<ObjectRef> {
     let NextItem {
       delivery,
       retry_count: _,
@@ -81,7 +82,7 @@ impl GasPool {
   }
 
   /// Removes the given gas coin object from the pool
-  pub async fn remove_gas_object(&mut self, coin_object_id: ObjectID) -> Result<()> {
+  pub async fn remove_gas_object(&self, coin_object_id: ObjectID) -> Result<()> {
     let coin_object_id_str = coin_object_id.to_hex_uncompressed();
     let mut conn = self.redis_pool.connection().await?;
 
@@ -89,7 +90,7 @@ impl GasPool {
     conn.delete(format!("{GAS_KEY_PREFIX}{coin_object_id_str}")).await?;
 
     // 2. remove from RabbitMQ
-    let delivery = self.pending_deliveries.remove(&coin_object_id_str).context("coin id not found")?;
+    let (_, delivery) = self.pending_deliveries.remove(&coin_object_id_str).context("coin id not found")?;
     // Ack here has the effect of the message being considered processed and thus removed from the queue
     delivery.ack(BasicAckOptions::default()).await?;
 
