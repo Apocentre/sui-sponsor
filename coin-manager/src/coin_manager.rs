@@ -234,7 +234,8 @@ impl CoinManager {
     let input_coins = coins.into_iter()
     .filter(|coin| {
       let (c, _, _) = coin.object_ref();
-      !current_coins.contains(&c.to_hex_literal())
+      let key = format!("{}{}", GAS_KEY_PREFIX, c.to_hex_uncompressed());
+      !current_coins.contains(&key)
     })
     .collect::<Vec<_>>();
   

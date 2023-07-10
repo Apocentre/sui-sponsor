@@ -57,16 +57,15 @@ impl Sponsor {
   }
 
   /// Examined the given transaction data and determines if sponsor supports it.
-  fn is_tx_supported(tx_data: &TransactionData) -> bool {
-    let TransactionData::V1(data) = tx_data;
-    if Self::is_blacklisted(&data.sender) {return false};
-    let TransactionKind::ProgrammableTransaction(ptx) = &data.kind else {return false};
+  fn is_tx_supported(tx_data: &TransactionKind, sender: SuiAddress) -> bool {
+    if Self::is_blacklisted(&sender) {return false};
+    let TransactionKind::ProgrammableTransaction(ptx) = &tx_data else {return false};
 
     // Make sure all commands are supported
     ptx.commands.iter().all(|cmd| match cmd {
       Command::MoveCall(move_call) => {
         let ProgrammableMoveCall {package, module, function, ..} = &**move_call;
-        
+
         if !Self::is_move_call_supported(&format!("{package}::{module}::{function}")) {
           return false
         }
@@ -91,8 +90,8 @@ impl Sponsor {
       price: self.gas_meter.gas_price().await?,
       budget: self.max_gas_budget,
     };
-  
-    Ok(gas_data) 
+
+    Ok(gas_data)
   }
 
   pub async fn gas_object_processed(&self, coin_object_id: ObjectID) -> Result<()> {
@@ -111,11 +110,11 @@ impl Sponsor {
   }
 
   /// Returns a gas objects for the given transaction data
-  pub async fn request_gas(&self, tx_data: TransactionData) -> Result<GasData> {
-    ensure!(Self::is_tx_supported(&tx_data), "transaction is not supported");
+  pub async fn request_gas(&self, tx_data: TransactionKind, sender: SuiAddress) -> Result<GasData> {
+    ensure!(Self::is_tx_supported(&tx_data, sender), "transaction is not supported");
     let gas_data = self.create_gas_data().await?;
     ensure!(Self::is_gas_budget_within_limits(&gas_data), "exceeded gas budget");
-    
+
     Ok(gas_data)
   }
 
@@ -123,8 +122,8 @@ impl Sponsor {
   /// and has signed the given tx_data. After this call, sponsor can transmit the transaction.
   /// Performs the same transaction data checks as in `request_gas`.
   pub async fn sign_tx(&self, tx_data: &TransactionData) -> Result<Signature> {
-    ensure!(Self::is_tx_supported(&tx_data), "transaction is not supported");
     let TransactionData::V1(tx) = &tx_data;
+    ensure!(Self::is_tx_supported(&tx.kind, tx.sender), "transaction is not supported");
     ensure!(Self::is_gas_budget_within_limits(&tx.gas_data), "exceeded gas budget");
 
     self.wallet.sign(&tx_data, Intent::sui_transaction())

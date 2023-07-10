@@ -16,9 +16,9 @@ pub struct Body {
 }
 
 #[derive(Serialize)]
-pub struct Response<'a> {
+pub struct Response {
   response: Option<SuiTransactionBlockResponse>,
-  errors: Vec<&'a str>,
+  errors: Vec<String>,
 }
 
 pub async fn exec(
@@ -38,8 +38,8 @@ pub async fn exec(
   if TxManager::has_errors(&response) {
     // TODO: get the actual error messages from `has_errors`
     http_response = Response {
-      response: None,
-      errors: vec!["Tx error"],
+      response: Some(response.clone()),
+      errors: TxManager::get_errors(&response),
     };
   } else {
     http_response = Response {

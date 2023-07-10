@@ -22,17 +22,21 @@ impl TxManager {
   }
 
   pub fn has_errors(response: &SuiTransactionBlockResponse) -> bool {
-    if response.errors.len() > 0 {return true}
+    Self::get_errors(response).len() > 0
+  }
+
+  pub fn get_errors(response: &SuiTransactionBlockResponse) -> Vec<String> {
+    if response.errors.len() > 0 {return response.errors.clone()}
 
     if let Some(effects) = response.effects.as_ref() {
       let SuiTransactionBlockEffects::V1(effects) = effects;
-      
-      if let SuiExecutionStatus::Failure {..} = effects.status {
-        return true
-      } 
+
+      if let SuiExecutionStatus::Failure {error} = effects.status.clone() {
+        return vec![error]
+      }
     }
 
-    false
+    vec![]
   }
 
   /// Returns the list of all gas payment objects from the GasData section of the given transaction data
