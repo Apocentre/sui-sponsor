@@ -1,7 +1,7 @@
 FROM rust:1.71 as builder
 
 RUN apt-get update \
-    && apt-get install -y ca-certificates libclang-dev \
+    && apt-get install -y clang \
     && rm -rf /var/lib/apt/lists/*
 
 RUN USER=root cargo new --bin api-dist
@@ -11,7 +11,7 @@ COPY ./common ./common
 WORKDIR ./api-dist
 RUN cargo build --release
 
-FROM debian:bookworm-slim
+FROM debian:bullseye-slim
 ARG APP=/usr/src/app
 
 EXPOSE 8000
