@@ -9,6 +9,7 @@ use sui_sponsor_common::{
 };
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Body {
   tx_data: String,
   // TODO: this must be a signature which we can use to recover the sender address
