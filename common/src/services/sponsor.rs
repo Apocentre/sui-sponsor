@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use eyre::{eyre, Result, ensure};
 use shared_crypto::intent::Intent;
-use sui_sdk::{SuiClient};
+use sui_sdk::SuiClient;
 use sui_types::{
   transaction::{GasData, TransactionData, TransactionKind, Command, ProgrammableMoveCall},
   base_types::{ObjectID, SuiAddress}, gas_coin::GasCoin, crypto::Signature,
@@ -15,7 +15,7 @@ pub struct Sponsor {
   api: Arc<SuiClient>,
   wallet: Arc<Wallet>,
   gas_meter: Arc<GasMeter>,
-  gas_pool: GasPool,
+  gas_pool: Arc<&'static GasPool>,
   min_coin_balance: u64,
   max_gas_budget: u64,
 }
@@ -25,7 +25,7 @@ impl Sponsor {
     api: Arc<SuiClient>,
     wallet: Arc<Wallet>,
     gas_meter: Arc<GasMeter>,
-    gas_pool: GasPool,
+    gas_pool: Arc<&'static GasPool>,
     min_coin_balance: u64,
     max_gas_budget: u64,
   ) -> Self {

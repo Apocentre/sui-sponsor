@@ -40,11 +40,14 @@ impl Store {
     );
 
     let wallet = Arc::new(Wallet::new(config.sui.sponsor_keypair.clone()));
-    let gas_pool = GasPool::try_new(
+    let gas_pool: Arc<&'static GasPool> = Arc::new(Box::leak(Box::new(GasPool::try_new(
       Arc::clone(&rpc_client),
       Arc::clone(&redis_pool),
       &config.rabbitmq.uri,
-    ).await;
+    ).await)));
+    
+    GasPool::spawn_clean_queue(Arc::clone(&gas_pool));
+
     let gas_meter = Arc::new(GasMeter::new(Arc::clone(&rpc_client)));
 
     let sponsor = Sponsor::new(
