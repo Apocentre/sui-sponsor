@@ -62,7 +62,7 @@ impl GasPool {
   /// can be consumer by other transactions
   pub fn spawn_clean_queue(this: Arc<&'static Self>) {
     let this = Arc::clone(&this);
-    
+
     tokio::spawn(async move {
       let mut interval = time::interval(Duration::from_secs(60));
       
@@ -71,6 +71,8 @@ impl GasPool {
         interval.tick().await;
 
         for (coin_object_id, delivery_info) in this.pending_deliveries.iter().enumerate() {
+          // Each gas object has 2 minutes to be processes. This is way more than enough for a transction to be
+          // be processed. If it doesn't then something is wrong and thus we need to return the object.
           if delivery_info.created_at.elapsed().unwrap().as_secs() > 10 {
             info!("Nacking object id {}", coin_object_id);
             delivery_info.delivery.nack(BasicNackOptions::default()).await.unwrap();
