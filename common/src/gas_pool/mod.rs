@@ -70,13 +70,26 @@ impl GasPool {
         info!("Searching for stalled unacked object ids");
         interval.tick().await;
 
-        for (coin_object_id, delivery_info) in this.pending_deliveries.iter().enumerate() {
+        let mut staled_object_ids = vec![];
+
+        for delivery_info in this.pending_deliveries.iter() {
+          let key = delivery_info.key();
+          let value = delivery_info.value();
+
           // Each gas object has 2 minutes to be processes. This is way more than enough for a transction to be
           // be processed. If it doesn't then something is wrong and thus we need to return the object.
-          if delivery_info.created_at.elapsed().unwrap().as_secs() > 10 {
-            info!("Nacking object id {}", coin_object_id);
-            delivery_info.delivery.nack(BasicNackOptions::default()).await.unwrap();
+          if value.created_at.elapsed().unwrap().as_secs() > 10 {
+            info!("Nacking object id {}", key);
+            
+            // ingore if there is an error
+            staled_object_ids.push(key.clone());
+            let _ = delivery_info.delivery.nack(BasicNackOptions::default()).await;
           }
+        }
+
+        // remove all stalled object ids from the local pending_deliveries Map
+        for object_id in staled_object_ids {
+          let _ = this.pending_deliveries.remove(&object_id).context("coin id not found");
         }
       }
     });
